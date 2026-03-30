@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-background": "#e4e2e1",
+            "surface": "#131313",
+            "on-tertiary": "#2f3131",
+            "on-error-container": "#ffdad6",
+            "on-secondary": "#303030",
+            "on-tertiary-fixed": "#1a1c1c",
+            "surface-container-lowest": "#0e0e0e",
+            "inverse-surface": "#e4e2e1",
+            "inverse-on-surface": "#303030",
+            "primary-fixed-dim": "#98cbff",
+            "secondary": "#c8c6c5",
+            "on-primary-container": "#002c49",
+            "on-tertiary-container": "#292a2a",
+            "error-container": "#93000a",
+            "tertiary-container": "#909191",
+            "primary": "#98cbff",
+            "surface-variant": "#353535",
+            "tertiary-fixed": "#e3e2e2",
+            "error": "#ffb4ab",
+            "inverse-primary": "#00639c",
+            "on-surface-variant": "#c0c7d2",
+            "surface-container-high": "#2a2a2a",
+            "on-secondary-container": "#b7b5b4",
+            "surface-dim": "#131313",
+            "on-secondary-fixed-variant": "#474746",
+            "tertiary-fixed-dim": "#c7c6c6",
+            "on-primary-fixed-variant": "#004a77",
+            "tertiary": "#c7c6c6",
+            "primary-container": "#4596d9",
+            "outline-variant": "#404750",
+            "on-primary-fixed": "#001d33",
+            "surface-bright": "#393939",
+            "secondary-fixed-dim": "#c8c6c5",
+            "surface-container-highest": "#353535",
+            "on-primary": "#003354",
+            "primary-fixed": "#cee5ff",
+            "surface-container-low": "#1b1c1c",
+            "surface-tint": "#98cbff",
+            "surface-container": "#1f2020",
+            "on-tertiary-fixed-variant": "#464747",
+            "secondary-container": "#474746",
+            "on-surface": "#e4e2e1",
+            "on-secondary-fixed": "#1b1b1c",
+            "background": "#131313",
+            "secondary-fixed": "#e5e2e1",
+            "outline": "#8a919b",
+            "on-error": "#690005"
+          },
+          fontFamily: {
+            "headline": ["Inter"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    /* Custom Scrollbar for the Monolith theme */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #131313; }
+    ::-webkit-scrollbar-thumb { background: #353535; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4596d9; }
+  </style>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased flex min-h-screen overflow-hidden">
+<!-- SideNavBar Anchor -->
+<aside class="h-screen w-[200px] fixed left-0 top-0 bg-[#1a1a1a] flex flex-col py-6 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-bold tracking-tighter text-[#98cbff]">MedWatch</h1>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="bg-[#353535] text-[#98cbff] border-l-[3px] border-[#3b8ed0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">search</span>
+<span>Cari Obat</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">compare_arrows</span>
+<span>Bandingkan Obat</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Data Pasien</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span>Visualisasi</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">security</span>
+<span>Safety Checker</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+<span>Export PDF</span>
+</a>
+</nav>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-[200px] flex-1 bg-[#2b2b2b] min-h-screen p-11">
+<!-- Title Section -->
+<header class="h-16 flex items-center px-8">
+<h2 class="text-lg font-semibold text-[#e4e2e1]">Dashboard</h2>
+</header>
+<!-- 2x2 Grid Section -->
+<section class="grid grid-cols-2 gap-5 mb-12 max-w-4xl">
+<!-- Card 1 -->
+<div class="bg-[#3a3a3a] p-8 rounded-lg flex flex-col items-start gap-1">
+<span class="text-4xl font-extrabold text-[#98cbff]">127</span>
+<span class="text-xs text-on-surface/70 font-medium">Total Obat di Database</span>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#3a3a3a] p-8 rounded-lg flex flex-col items-start gap-1">
+<span class="text-4xl font-extrabold text-[#98cbff]">43</span>
+<span class="text-xs text-on-surface/70 font-medium">Total Pasien Terdaftar</span>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#3a3a3a] p-8 rounded-lg flex flex-col items-start gap-1">
+<span class="text-4xl font-extrabold text-error">5</span>
+<span class="text-xs text-on-surface/70 font-medium">Peringatan Aktif</span>
+</div>
+<!-- Card 4 -->
+<div class="bg-[#3a3a3a] p-8 rounded-lg flex flex-col items-start gap-1">
+<span class="text-4xl font-extrabold text-[#98cbff]">12</span>
+<span class="text-xs text-on-surface/70 font-medium">Laporan Bulan Ini</span>
+</div>
+</section>
+<!-- Aktivitas Terakhir Section -->
+<section class="max-w-4xl">
+<div class="flex items-center justify-between mb-5">
+<h3 class="text-lg font-semibold text-on-surface/90">Aktivitas Terakhir</h3>
+<button class="bg-[#3b8ed0] text-on-primary text-xs font-bold px-4 py-2 rounded-md hover:brightness-110 transition-all">
+          Lihat Semua
+        </button>
+</div>
+<div class="space-y-3">
+<!-- Activity Item 1 -->
+<div class="bg-surface-container-low p-4 rounded-md flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-[#98cbff]"></div>
+<div class="flex-1">
+<p class="text-sm text-on-surface">Pasien baru ditambahkan: <span class="font-bold">Siti Aminah</span></p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider">28 Mar 2026</p>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="bg-surface-container-low p-4 rounded-md flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-[#98cbff]"></div>
+<div class="flex-1">
+<p class="text-sm text-on-surface">Obat dicek: <span class="font-bold">Amoxicillin</span></p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider">27 Mar 2026</p>
+</div>
+</div>
+<!-- Activity Item 3 (Warning) -->
+<div class="bg-surface-container-low p-4 rounded-md flex items-center gap-4 border-l-4 border-error">
+<div class="w-2 h-2 rounded-full bg-error"></div>
+<div class="flex-1">
+<p class="text-sm text-on-surface"><span class="text-error font-bold">Warning:</span> Paracetamol — efek samping serius terdeteksi</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider">27 Mar 2026</p>
+</div>
+</div>
+<!-- Activity Item 4 -->
+<div class="bg-surface-container-low p-4 rounded-md flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-[#98cbff]"></div>
+<div class="flex-1">
+<p class="text-sm text-on-surface">Export PDF Laporan Mingguan berhasil</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider">26 Mar 2026</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

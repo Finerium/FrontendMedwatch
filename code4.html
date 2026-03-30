@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MedWatch - Data Pasien</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-low": "#1b1c1c",
+                        "primary-fixed-dim": "#98cbff",
+                        "on-tertiary-fixed-variant": "#930012",
+                        "secondary-fixed": "#e4e2e2",
+                        "primary": "#98cbff",
+                        "tertiary": "#ffb3ad",
+                        "surface-variant": "#353535",
+                        "on-primary-fixed": "#001d33",
+                        "on-error": "#690005",
+                        "on-error-container": "#ffdad6",
+                        "primary-container": "#4596d9",
+                        "surface-container-highest": "#353535",
+                        "tertiary-fixed-dim": "#ffb3ad",
+                        "outline": "#8a919b",
+                        "on-tertiary-container": "#5c0007",
+                        "secondary": "#c8c6c6",
+                        "secondary-container": "#464747",
+                        "surface-bright": "#393939",
+                        "on-tertiary-fixed": "#410003",
+                        "error": "#ffb4ab",
+                        "on-primary-container": "#002c49",
+                        "background": "#131313",
+                        "on-surface": "#e4e2e1",
+                        "secondary-fixed-dim": "#c8c6c6",
+                        "on-secondary-container": "#b6b5b4",
+                        "surface-tint": "#98cbff",
+                        "outline-variant": "#404750",
+                        "on-tertiary": "#680009",
+                        "surface-dim": "#131313",
+                        "inverse-surface": "#e4e2e1",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "on-secondary-fixed-variant": "#464747",
+                        "surface-container-high": "#2a2a2a",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffdad6",
+                        "on-secondary": "#303030",
+                        "on-surface-variant": "#c0c7d2",
+                        "inverse-on-surface": "#303030",
+                        "on-primary-fixed-variant": "#004a77",
+                        "on-primary": "#003354",
+                        "surface": "#131313",
+                        "surface-container-lowest": "#0e0e0e",
+                        "tertiary-container": "#fd5652",
+                        "primary-fixed": "#cee5ff",
+                        "inverse-primary": "#00639c",
+                        "surface-container": "#1f2020",
+                        "on-background": "#e4e2e1"
+                    },
+                    fontFamily: {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface antialiased overflow-hidden">
+<!-- SideNavBar Integration -->
+<aside class="h-screen w-[200px] fixed left-0 top-0 bg-[#1a1a1a] flex flex-col py-6 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-bold tracking-tighter text-[#98cbff]">MedWatch</h1>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">search</span>
+<span>Cari Obat</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">compare_arrows</span>
+<span>Bandingkan Obat</span>
+</a>
+<a class="bg-[#353535] text-[#98cbff] border-l-[3px] border-[#3b8ed0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Data Pasien</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span>Visualisasi</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">security</span>
+<span>Safety Checker</span>
+</a>
+<a class="text-[#a0a0a0] px-6 py-3 flex items-center gap-3 text-sm" href="#">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+<span>Export PDF</span>
+</a>
+</nav>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-[200px] flex flex-col min-h-screen">
+<!-- TopAppBar Integration -->
+<header class="h-16 flex items-center px-8">
+<h2 class="text-lg font-semibold text-[#e4e2e1]">Data Pasien</h2>
+</header>
+<!-- Content Area -->
+<div class="p-8 flex-1">
+<!-- Action Toolbar -->
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary to-primary-container text-on-primary font-medium rounded-lg shadow-lg shadow-primary/10 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-lg">person_add</span>
+                        Tambah Pasien
+                    </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-medium rounded-lg transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg">edit</span>
+                        Edit
+                    </button>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-error-container/20 hover:bg-error-container text-error font-medium rounded-lg transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg">delete</span>
+                        Hapus
+                    </button>
+</div>
+</div>
+<!-- Bento Grid - Patient Table Section -->
+<div class="bg-surface-container rounded-xl overflow-hidden shadow-2xl">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high text-on-surface-variant text-xs font-semibold uppercase tracking-wider">
+<th class="px-6 py-4 border-none">No</th>
+<th class="px-6 py-4 border-none">Nama Pasien</th>
+<th class="px-6 py-4 border-none text-center">Usia</th>
+<th class="px-6 py-4 border-none">Keluhan</th>
+<th class="px-6 py-4 border-none">Diagnosa</th>
+<th class="px-6 py-4 border-none">Obat</th>
+<th class="px-6 py-4 border-none text-right">Tgl Kunjungan</th>
+</tr>
+</thead>
+<tbody class="text-sm">
+<tr class="hover:bg-surface-container-high/50 transition-colors group cursor-pointer border-b border-white/5">
+<td class="px-6 py-4 text-on-surface-variant">01</td>
+<td class="px-6 py-4 font-medium text-on-surface">Siti Aminah</td>
+<td class="px-6 py-4 text-center">34</td>
+<td class="px-6 py-4 text-on-surface-variant">Demam, batuk</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-primary-container/10 text-primary text-[10px] font-bold">ISPA</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant italic">Paracetamol</td>
+<td class="px-6 py-4 text-right font-mono text-xs text-on-surface-variant">28/03/2026</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors group cursor-pointer border-b border-white/5">
+<td class="px-6 py-4 text-on-surface-variant">02</td>
+<td class="px-6 py-4 font-medium text-on-surface">Ahmad Fauzi</td>
+<td class="px-6 py-4 text-center">45</td>
+<td class="px-6 py-4 text-on-surface-variant">Nyeri sendi</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-tertiary-container/10 text-tertiary text-[10px] font-bold">Arthritis</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant italic">Ibuprofen</td>
+<td class="px-6 py-4 text-right font-mono text-xs text-on-surface-variant">27/03/2026</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors group cursor-pointer border-b border-white/5">
+<td class="px-6 py-4 text-on-surface-variant">03</td>
+<td class="px-6 py-4 font-medium text-on-surface">Dewi Lestari</td>
+<td class="px-6 py-4 text-center">28</td>
+<td class="px-6 py-4 text-on-surface-variant">Mual, pusing</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-secondary-container text-secondary text-[10px] font-bold">Gastritis</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant italic">Antasida</td>
+<td class="px-6 py-4 text-right font-mono text-xs text-on-surface-variant">25/03/2026</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors group cursor-pointer border-b border-white/5">
+<td class="px-6 py-4 text-on-surface-variant">04</td>
+<td class="px-6 py-4 font-medium text-on-surface">Rizki Pratama</td>
+<td class="px-6 py-4 text-center">52</td>
+<td class="px-6 py-4 text-on-surface-variant">Sesak napas</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-error-container/20 text-error text-[10px] font-bold uppercase">Asma</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant italic">Salbutamol</td>
+<td class="px-6 py-4 text-right font-mono text-xs text-on-surface-variant">24/03/2026</td>
+</tr>
+<tr class="hover:bg-surface-container-high/50 transition-colors group cursor-pointer">
+<td class="px-6 py-4 text-on-surface-variant">05</td>
+<td class="px-6 py-4 font-medium text-on-surface">Nur Halimah</td>
+<td class="px-6 py-4 text-center">30</td>
+<td class="px-6 py-4 text-on-surface-variant">Demam tinggi</td>
+<td class="px-6 py-4">
+<span class="px-2 py-1 rounded bg-primary-container/20 text-primary text-[10px] font-bold">Tifus</span>
+</td>
+<td class="px-6 py-4 text-on-surface-variant italic">Amoxicillin</td>
+<td class="px-6 py-4 text-right font-mono text-xs text-on-surface-variant">22/03/2026</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Footer Stats -->
+<footer class="mt-6 flex items-center justify-between text-on-surface-variant px-2">
+<div class="text-xs font-label">
+                    Menampilkan <span class="text-primary font-bold">5</span> dari <span class="text-primary font-bold">43</span> pasien
+                </div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded hover:bg-surface-container material-symbols-outlined text-sm">chevron_left</button>
+<div class="px-3 py-1 rounded-md bg-primary-container text-on-primary-container text-xs font-bold">1</div>
+<button class="px-3 py-1 rounded-md hover:bg-surface-container text-xs">2</button>
+<button class="px-3 py-1 rounded-md hover:bg-surface-container text-xs">3</button>
+<button class="p-1 rounded hover:bg-surface-container material-symbols-outlined text-sm">chevron_right</button>
+</div>
+</footer>
+</div>
+</main>
+</body></html>
