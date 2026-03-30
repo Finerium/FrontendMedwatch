@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright mcp debug
+.playwright-mcp/
+
+# dev screenshots in root (keep screenshots/ folder)
+/*.png
+
+# backup files
+*.bak
