@@ -1,45 +1,79 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
+import Link from "next/link";
 import { PageTransition } from "@/components/layout/PageTransition";
 import { GlassCard } from "@/components/shared/GlassCard";
 import { AnimatedCounter } from "@/components/shared/AnimatedCounter";
+import { useHydratedPatientStore } from "@/lib/use-hydrated-store";
+import type { Patient } from "@/lib/store";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  monthlyVisits,
-  complaintDistribution,
-} from "@/data/visualization";
 import {
   Activity,
   TrendingUp,
   UserPlus,
-  AlertCircle,
+  Stethoscope,
   Calendar,
   ChevronDown,
   BarChart3,
-  PieChart as PieChartIcon,
+  PlusCircle,
 } from "lucide-react";
 import {
-  ComposedChart,
-  Area,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   PieChart,
   Pie,
   Cell,
   Sector,
   BarChart,
   Bar,
+  Legend,
 } from "recharts";
 
 /* ───── Constants ───── */
 
-const months = monthlyVisits.map((m) => m.month);
+const DATE_RANGE_OPTIONS = [
+  "Semua",
+  "7 Hari Terakhir",
+  "30 Hari Terakhir",
+  "3 Bulan Terakhir",
+  "6 Bulan Terakhir",
+  "1 Tahun Terakhir",
+] as const;
+
+type DateRange = (typeof DATE_RANGE_OPTIONS)[number];
+
+const PIE_COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#22c55e",
+  "#f59e0b",
+  "#ef4444",
+  "#64748b",
+  "#94a3b8",
+];
+
+const MONTH_NAMES_ID = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mei",
+  "Jun",
+  "Jul",
+  "Agu",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Des",
+];
+
+const AGE_RANGES = ["0-12", "13-17", "18-30", "31-50", "51-65", "65+"] as const;
 
 const containerVariants = {
   hidden: {},
@@ -55,16 +89,60 @@ const itemVariants = {
   },
 };
 
-/* ───── Custom Dropdown Component ───── */
+/* ───── Helpers ───── */
+
+function getAgeRange(age: number): (typeof AGE_RANGES)[number] {
+  if (age <= 12) return "0-12";
+  if (age <= 17) return "13-17";
+  if (age <= 30) return "18-30";
+  if (age <= 50) return "31-50";
+  if (age <= 65) return "51-65";
+  return "65+";
+}
+
+function filterPatientsByRange(patients: Patient[], range: DateRange): Patient[] {
+  if (range === "Semua") return patients;
+
+  const now = new Date();
+  let cutoff: Date;
+
+  switch (range) {
+    case "7 Hari Terakhir":
+      cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case "30 Hari Terakhir":
+      cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case "3 Bulan Terakhir":
+      cutoff = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      break;
+    case "6 Bulan Terakhir":
+      cutoff = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      break;
+    case "1 Tahun Terakhir":
+      cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      break;
+    default:
+      return patients;
+  }
+
+  return patients.filter((p) => new Date(p.visitDate) >= cutoff);
+}
+
+function formatMonthLabel(year: number, month: number): string {
+  const yy = String(year).slice(-2);
+  return `${MONTH_NAMES_ID[month]} ${yy}`;
+}
+
+/* ───── Glass Dropdown ───── */
 
 interface GlassDropdownProps {
-  label: string;
   value: string;
-  options: string[];
+  options: readonly string[];
   onChange: (value: string) => void;
 }
 
-function GlassDropdown({ label, value, options, onChange }: GlassDropdownProps) {
+function GlassDropdown({ value, options, onChange }: GlassDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -80,14 +158,11 @@ function GlassDropdown({ label, value, options, onChange }: GlassDropdownProps) 
 
   return (
     <div className={`relative ${isOpen ? "z-50" : ""}`} ref={dropdownRef}>
-      <span className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">
-        {label}
-      </span>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label={`${label}: ${value}`}
+        aria-label={`Periode: ${value}`}
         aria-expanded={isOpen}
-        className="flex items-center justify-between gap-2 w-full min-w-[160px] px-3.5 py-2.5 rounded-xl text-sm font-medium
+        className="flex items-center justify-between gap-2 w-full min-w-[200px] px-3.5 py-2.5 rounded-xl text-sm font-medium
           bg-white/60 dark:bg-white/[0.05] backdrop-blur-lg
           border border-black/[0.06] dark:border-white/[0.08]
           text-slate-900 dark:text-slate-50
@@ -116,7 +191,7 @@ function GlassDropdown({ label, value, options, onChange }: GlassDropdownProps) 
               bg-white/90 dark:bg-slate-900/95 backdrop-blur-2xl
               border border-black/[0.08] dark:border-white/[0.12]
               rounded-xl shadow-2xl dark:shadow-[0_16px_48px_0_rgba(0,0,0,0.5)]
-              max-h-[240px] overflow-y-auto"
+              max-h-[280px] overflow-y-auto"
           >
             {options.map((option) => (
               <button
@@ -141,55 +216,65 @@ function GlassDropdown({ label, value, options, onChange }: GlassDropdownProps) 
   );
 }
 
-/* ───── Custom Tooltip for Visit Chart ───── */
+/* ───── Custom Tooltips ───── */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function VisitTooltip({ active, payload, label }: any) {
+function VisitBarTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] rounded-xl shadow-xl px-4 py-3 text-sm">
-      <p className="font-medium text-slate-900 dark:text-slate-50 mb-2">{label}</p>
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-          <span className="text-slate-600 dark:text-slate-400">Total Kunjungan:</span>
-          <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
-            {payload[0]?.value?.toLocaleString("id-ID")}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
-          <span className="text-slate-600 dark:text-slate-400">Pasien Baru:</span>
-          <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
-            {payload[1]?.value?.toLocaleString("id-ID")}
-          </span>
-        </div>
+      <p className="font-medium text-slate-900 dark:text-slate-50 mb-1">Bulan: {label}</p>
+      <div className="flex items-center gap-2">
+        <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+        <span className="text-slate-600 dark:text-slate-400">Jumlah Kunjungan:</span>
+        <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
+          {payload[0]?.value?.toLocaleString("id-ID")}
+        </span>
       </div>
     </div>
   );
 }
 
-/* ───── Custom Tooltip for Bar Chart ───── */
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ComplaintBarTooltip({ active, payload }: any) {
+function DrugBarTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   const data = payload[0]?.payload;
   if (!data) return null;
   return (
     <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] rounded-xl shadow-xl px-4 py-3 text-sm">
-      <p className="font-medium text-slate-900 dark:text-slate-50">{data.complaint}</p>
+      <p className="font-medium text-slate-900 dark:text-slate-50">{data.drug}</p>
       <div className="flex items-center gap-2 mt-1">
-        <span className="text-slate-600 dark:text-slate-400">Jumlah:</span>
+        <span className="text-slate-600 dark:text-slate-400">Diresepkan:</span>
         <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
-          {data.count}
+          {data.count}x
         </span>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-slate-600 dark:text-slate-400">Persentase:</span>
-        <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
-          {data.percentage}%
-        </span>
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function GenderAgeTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-black/[0.08] dark:border-white/[0.08] rounded-xl shadow-xl px-4 py-3 text-sm">
+      <p className="font-medium text-slate-900 dark:text-slate-50 mb-2">Usia: {label}</p>
+      <div className="space-y-1">
+        {payload.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (entry: any) => (
+            <div key={entry.name} className="flex items-center gap-2">
+              <span
+                className="w-2.5 h-2.5 rounded-full"
+                style={{ backgroundColor: entry.fill || entry.color }}
+              />
+              <span className="text-slate-600 dark:text-slate-400">{entry.name}:</span>
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-50">
+                {entry.value}
+              </span>
+            </div>
+          )
+        )}
       </div>
     </div>
   );
@@ -199,16 +284,7 @@ function ComplaintBarTooltip({ active, payload }: any) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function renderActiveShape(props: any) {
-  const {
-    cx,
-    cy,
-    innerRadius,
-    outerRadius,
-    startAngle,
-    endAngle,
-    fill,
-  } = props;
-
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
     <g>
       <Sector
@@ -234,131 +310,151 @@ function renderActiveShape(props: any) {
   );
 }
 
-/* ───── Custom Legend for Pie ───── */
+/* ───── Skeleton Loaders ───── */
 
-interface PieLegendProps {
-  data: typeof complaintDistribution;
-  activeIndex: number;
-  onHover: (index: number) => void;
-  onLeave: () => void;
+function SkeletonCard() {
+  return (
+    <GlassCard variant="subtle">
+      <div className="animate-pulse flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-slate-200 dark:bg-white/[0.06]" />
+        <div className="flex-1 space-y-2">
+          <div className="h-3 w-20 rounded bg-slate-200 dark:bg-white/[0.06]" />
+          <div className="h-7 w-16 rounded bg-slate-200 dark:bg-white/[0.06]" />
+        </div>
+      </div>
+    </GlassCard>
+  );
 }
 
-function PieLegend({ data, activeIndex, onHover, onLeave }: PieLegendProps) {
+function SkeletonChart() {
   return (
-    <div className="flex flex-col gap-2 text-sm">
-      {data.map((item, index) => (
-        <div
-          key={item.complaint}
-          onMouseEnter={() => onHover(index)}
-          onMouseLeave={onLeave}
-          className={`flex items-center gap-3 px-3 py-1.5 rounded-lg cursor-pointer transition-all duration-200 ${
-            activeIndex === index
-              ? "bg-white/60 dark:bg-white/[0.06] scale-[1.02]"
-              : "hover:bg-white/40 dark:hover:bg-white/[0.03]"
-          }`}
-        >
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: item.color }}
-          />
-          <span className="flex-1 text-slate-700 dark:text-slate-300 truncate">
-            {item.complaint}
-          </span>
-          <span className="font-mono font-medium text-slate-900 dark:text-slate-50 tabular-nums">
-            {item.count}
-          </span>
-          <span className="text-slate-400 dark:text-slate-500 text-xs tabular-nums">
-            {item.percentage}%
-          </span>
-        </div>
-      ))}
-    </div>
+    <GlassCard>
+      <div className="animate-pulse space-y-4">
+        <div className="h-5 w-48 rounded bg-slate-200 dark:bg-white/[0.06]" />
+        <div className="h-[300px] rounded-xl bg-slate-200/50 dark:bg-white/[0.03]" />
+      </div>
+    </GlassCard>
   );
 }
 
 /* ───── Main Page Component ───── */
 
 export default function VisualizationPage() {
-  const [fromMonth, setFromMonth] = useState(months[0]);
-  const [toMonth, setToMonth] = useState(months[months.length - 1]);
-  const [appliedFrom, setAppliedFrom] = useState(months[0]);
-  const [appliedTo, setAppliedTo] = useState(months[months.length - 1]);
-  const [chartView, setChartView] = useState<"donut" | "bar">("donut");
+  const { patients, hydrated } = useHydratedPatientStore();
+  const [dateRange, setDateRange] = useState<DateRange>("Semua");
   const [activePieIndex, setActivePieIndex] = useState(-1);
 
-  /* Derive filtered data */
-  const filteredVisits = useMemo(() => {
-    const fromIdx = months.indexOf(appliedFrom);
-    const toIdx = months.indexOf(appliedTo);
-    if (fromIdx === -1 || toIdx === -1 || fromIdx > toIdx) return monthlyVisits;
-    return monthlyVisits.slice(fromIdx, toIdx + 1);
-  }, [appliedFrom, appliedTo]);
-
-  /* Computed stats */
-  const totalVisits = useMemo(
-    () => filteredVisits.reduce((sum, m) => sum + m.visits, 0),
-    [filteredVisits]
+  /* ── Filtered patients ── */
+  const filtered = useMemo(
+    () => filterPatientsByRange(patients, dateRange),
+    [patients, dateRange]
   );
 
-  const avgVisits = useMemo(
-    () => Math.round(totalVisits / (filteredVisits.length || 1)),
-    [totalVisits, filteredVisits.length]
-  );
+  /* ── Chart 1: Monthly visit trend (last 12 months, sliding window) ── */
+  const monthlyVisitData = useMemo(() => {
+    const now = new Date();
+    const months: { key: string; label: string; count: number }[] = [];
 
-  const totalNewPatients = useMemo(
-    () => filteredVisits.reduce((sum, m) => sum + m.newPatients, 0),
-    [filteredVisits]
-  );
-
-  const topComplaint = useMemo(() => {
-    return complaintDistribution.reduce((max, c) =>
-      c.count > max.count ? c : max
-    );
-  }, []);
-
-  const totalComplaints = useMemo(
-    () => complaintDistribution.reduce((sum, c) => sum + c.count, 0),
-    []
-  );
-
-  const sortedComplaints = useMemo(
-    () => [...complaintDistribution].sort((a, b) => b.count - a.count),
-    []
-  );
-
-  /* "Sampai" options: only months >= fromMonth */
-  const toMonthOptions = useMemo(() => {
-    const fromIdx = months.indexOf(fromMonth);
-    return fromIdx >= 0 ? months.slice(fromIdx) : months;
-  }, [fromMonth]);
-
-  /* Apply filter */
-  const handleApply = useCallback(() => {
-    setAppliedFrom(fromMonth);
-    const fromIdx = months.indexOf(fromMonth);
-    const toIdx = months.indexOf(toMonth);
-    if (toIdx < fromIdx) {
-      setToMonth(fromMonth);
-      setAppliedTo(fromMonth);
-    } else {
-      setAppliedTo(toMonth);
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = formatMonthLabel(d.getFullYear(), d.getMonth());
+      months.push({ key, label, count: 0 });
     }
-  }, [fromMonth, toMonth]);
 
-  /* When fromMonth changes, ensure toMonth is still valid */
-  const handleFromChange = useCallback(
-    (val: string) => {
-      setFromMonth(val);
-      const fromIdx = months.indexOf(val);
-      const toIdx = months.indexOf(toMonth);
-      if (toIdx < fromIdx) {
-        setToMonth(val);
-      }
-    },
-    [toMonth]
+    for (const p of filtered) {
+      const vd = new Date(p.visitDate);
+      const key = `${vd.getFullYear()}-${String(vd.getMonth() + 1).padStart(2, "0")}`;
+      const entry = months.find((m) => m.key === key);
+      if (entry) entry.count++;
+    }
+
+    return months;
+  }, [filtered]);
+
+  /* ── Chart 2: Diagnosis distribution (top 8 + Lainnya) ── */
+  const diagnosisData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of filtered) {
+      counts[p.diagnosis] = (counts[p.diagnosis] || 0) + 1;
+    }
+
+    const sorted = Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    if (sorted.length <= 9) {
+      return sorted.map((d, i) => ({ ...d, color: PIE_COLORS[i % PIE_COLORS.length] }));
+    }
+
+    const top8 = sorted.slice(0, 8);
+    const restCount = sorted.slice(8).reduce((sum, d) => sum + d.count, 0);
+
+    return [
+      ...top8.map((d, i) => ({ ...d, color: PIE_COLORS[i] })),
+      { name: "Lainnya", count: restCount, color: PIE_COLORS[8] },
+    ];
+  }, [filtered]);
+
+  const totalDiagnosis = useMemo(
+    () => diagnosisData.reduce((sum, d) => sum + d.count, 0),
+    [diagnosisData]
   );
 
-  /* Stat card config */
+  /* ── Chart 3: Top 10 prescribed drugs ── */
+  const drugData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of filtered) {
+      for (const drug of p.prescribedDrugs) {
+        counts[drug] = (counts[drug] || 0) + 1;
+      }
+    }
+
+    return Object.entries(counts)
+      .map(([drug, count]) => ({ drug, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [filtered]);
+
+  /* ── Chart 4: Gender + Age distribution ── */
+  const genderAgeData = useMemo(() => {
+    const grid: Record<string, { Perempuan: number; "Laki-laki": number }> = {};
+    for (const range of AGE_RANGES) {
+      grid[range] = { Perempuan: 0, "Laki-laki": 0 };
+    }
+
+    for (const p of filtered) {
+      const range = getAgeRange(p.age);
+      grid[range][p.gender]++;
+    }
+
+    return AGE_RANGES.map((range) => ({
+      ageRange: range,
+      Perempuan: grid[range].Perempuan,
+      "Laki-laki": grid[range]["Laki-laki"],
+    }));
+  }, [filtered]);
+
+  /* ── Summary stats ── */
+  const totalVisits = filtered.length;
+
+  const avgAge = useMemo(() => {
+    if (filtered.length === 0) return 0;
+    const sum = filtered.reduce((acc, p) => acc + p.age, 0);
+    return Math.round(sum / filtered.length);
+  }, [filtered]);
+
+  const newPatients = useMemo(() => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    return filtered.filter((p) => new Date(p.createdAt) >= cutoff).length;
+  }, [filtered]);
+
+  const topDiagnosis = useMemo(() => {
+    if (diagnosisData.length === 0) return "-";
+    return diagnosisData[0].name;
+  }, [diagnosisData]);
+
   const stats = useMemo(
     () => [
       {
@@ -369,52 +465,120 @@ export default function VisualizationPage() {
         bgColor: "bg-blue-500/10",
       },
       {
-        label: "Rata-rata/Bulan",
-        value: avgVisits,
+        label: "Rata-rata Umur",
+        value: avgAge,
         icon: TrendingUp,
         color: "text-purple-500",
         bgColor: "bg-purple-500/10",
+        suffix: "tahun",
       },
       {
         label: "Pasien Baru",
-        value: totalNewPatients,
+        value: newPatients,
         icon: UserPlus,
         color: "text-teal-500",
         bgColor: "bg-teal-500/10",
+        suffix: "30 hari terakhir",
       },
       {
-        label: "Keluhan Terbanyak",
-        value: topComplaint.count,
-        icon: AlertCircle,
+        label: "Diagnosis Terbanyak",
+        value: diagnosisData.length > 0 ? diagnosisData[0].count : 0,
+        icon: Stethoscope,
         color: "text-pink-500",
         bgColor: "bg-pink-500/10",
-        suffix: topComplaint.complaint,
+        suffix: topDiagnosis,
       },
     ],
-    [totalVisits, avgVisits, totalNewPatients, topComplaint]
+    [totalVisits, avgAge, newPatients, diagnosisData, topDiagnosis]
   );
 
-  /* Custom legend renderer for the visit chart */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderVisitLegend = useCallback((props: any) => {
-    const { payload } = props;
+  /* ── Loading State ── */
+  if (!hydrated) {
     return (
-      <div className="flex items-center justify-center gap-6 mt-2">
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {payload?.map((entry: any, index: number) => (
-          <div key={index} className="flex items-center gap-2 text-sm">
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: entry.color }}
-            />
-            <span className="text-slate-600 dark:text-slate-400">
-              {entry.value}
-            </span>
+      <PageTransition>
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              Visualisasi Data
+            </h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Memuat data pasien...
+            </p>
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonChart key={i} />
+            ))}
+          </div>
+        </div>
+      </PageTransition>
     );
-  }, []);
+  }
+
+  /* ── Empty State ── */
+  if (patients.length === 0) {
+    return (
+      <PageTransition>
+        <div className="space-y-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+              Visualisasi Data
+            </h1>
+          </div>
+          <div className="flex items-center justify-center min-h-[400px]">
+            <GlassCard className="max-w-md text-center">
+              <div className="p-2">
+                <BarChart3 className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50 mb-2">
+                  Belum ada data pasien untuk divisualisasikan
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                  Tambahkan data pasien terlebih dahulu untuk melihat visualisasi statistik.
+                </p>
+                <Link
+                  href="/patients/new"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium
+                    bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/25
+                    transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/30 active:scale-[0.98]"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Tambah Pasien
+                </Link>
+              </div>
+            </GlassCard>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  /* ── Pie Label Renderer ── */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
+    if (percent < 0.04) return null;
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5 + 20;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="#94a3b8"
+        textAnchor={x > cx ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={12}
+        fontFamily="monospace"
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <PageTransition>
@@ -422,10 +586,10 @@ export default function VisualizationPage() {
         {/* ── Header ── */}
         <div>
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Visualization
+            Visualisasi Data
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Tren kunjungan pasien dan distribusi keluhan
+            Analisis tren kunjungan, diagnosis, dan demografi pasien
           </p>
         </div>
 
@@ -437,42 +601,27 @@ export default function VisualizationPage() {
           className="relative z-20"
         >
           <GlassCard className="overflow-visible">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <div className="flex items-center gap-2 mr-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-blue-500" />
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                   Periode
                 </span>
               </div>
-
-              <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 flex-1">
-                <GlassDropdown
-                  label="Dari"
-                  value={fromMonth}
-                  options={months}
-                  onChange={handleFromChange}
-                />
-                <span className="hidden sm:block text-slate-400 dark:text-slate-500 pb-2.5">
-                  —
-                </span>
-                <GlassDropdown
-                  label="Sampai"
-                  value={toMonth}
-                  options={toMonthOptions}
-                  onChange={setToMonth}
-                />
-                <button
-                  onClick={handleApply}
-                  aria-label="Terapkan filter periode"
-                  className="px-4 py-2.5 rounded-xl text-sm font-medium
-                    bg-blue-600 hover:bg-blue-700
-                    text-white shadow-lg shadow-blue-600/25
-                    transition-all duration-200 hover:shadow-xl hover:shadow-blue-600/30
-                    active:scale-[0.98]"
+              <GlassDropdown
+                value={dateRange}
+                options={DATE_RANGE_OPTIONS}
+                onChange={(v) => setDateRange(v as DateRange)}
+              />
+              {dateRange !== "Semua" && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-xs text-slate-500 dark:text-slate-400"
                 >
-                  Terapkan
-                </button>
-              </div>
+                  {filtered.length} dari {patients.length} data ditampilkan
+                </motion.span>
+              )}
             </div>
           </GlassCard>
         </motion.div>
@@ -513,193 +662,119 @@ export default function VisualizationPage() {
           })}
         </motion.div>
 
-        {/* ── Visit Trend Chart ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <GlassCard>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6">
-              <div>
+        {/* ── Charts Grid ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── Chart 1: Tren Kunjungan Pasien per Bulan ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <GlassCard className="h-full">
+              <div className="mb-6">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                  Tren Kunjungan Pasien
+                  Tren Kunjungan Pasien per Bulan
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                  Data {appliedFrom} &mdash; {appliedTo}
+                  12 bulan terakhir
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="w-3 h-0.5 bg-blue-500 rounded" />
-                  Total Kunjungan
-                </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="w-3 h-0.5 rounded border-t-2 border-dashed border-purple-500 bg-transparent" />
-                  Pasien Baru
-                </div>
+
+              <div role="img" aria-label="Bar chart tren kunjungan pasien per bulan">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={monthlyVisitData}
+                    margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="barBlueGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.5} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="rgba(148,163,184,0.1)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "#94a3b8", fontSize: 11 }}
+                      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+                      tickLine={false}
+                      tickMargin={8}
+                    />
+                    <YAxis
+                      tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={4}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<VisitBarTooltip />} />
+                    <Bar
+                      dataKey="count"
+                      fill="url(#barBlueGradient)"
+                      radius={[6, 6, 0, 0]}
+                      barSize={28}
+                      animationDuration={1000}
+                      animationEasing="ease-out"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-            </div>
+            </GlassCard>
+          </motion.div>
 
-            <div role="img" aria-label="Grafik tren kunjungan pasien per bulan">
-            <ResponsiveContainer width="100%" height={350}>
-              <ComposedChart
-                data={filteredVisits}
-                margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="visitGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(148,163,184,0.1)"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
-                  tickLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  tick={{ fill: "#94a3b8", fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickMargin={4}
-                />
-                <Tooltip content={<VisitTooltip />} />
-                <Legend content={renderVisitLegend} />
-                <Area
-                  type="monotone"
-                  dataKey="visits"
-                  name="Total Kunjungan"
-                  stroke="#3b82f6"
-                  strokeWidth={2.5}
-                  fill="url(#visitGradient)"
-                  dot={false}
-                  activeDot={{
-                    r: 6,
-                    stroke: "#3b82f6",
-                    strokeWidth: 2,
-                    fill: "#fff",
-                  }}
-                  animationDuration={1200}
-                  animationEasing="ease-out"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="newPatients"
-                  name="Pasien Baru"
-                  stroke="#8b5cf6"
-                  strokeWidth={2}
-                  strokeDasharray="6 4"
-                  dot={{
-                    r: 4,
-                    stroke: "#8b5cf6",
-                    strokeWidth: 2,
-                    fill: "#fff",
-                  }}
-                  activeDot={{
-                    r: 6,
-                    stroke: "#8b5cf6",
-                    strokeWidth: 2,
-                    fill: "#fff",
-                  }}
-                  animationDuration={1500}
-                  animationEasing="ease-out"
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-            </div>
-          </GlassCard>
-        </motion.div>
-
-        {/* ── Complaint Distribution ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-        >
-          <GlassCard>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                Distribusi Keluhan Pasien
-              </h2>
-
-              {/* Toggle Tabs */}
-              <div className="inline-flex p-1 rounded-xl bg-white/50 dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06]">
-                <button
-                  onClick={() => setChartView("donut")}
-                  aria-label="Tampilkan donut chart"
-                  aria-pressed={chartView === "donut"}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    chartView === "donut"
-                      ? "bg-white dark:bg-white/[0.1] text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <PieChartIcon className="w-4 h-4" />
-                  Donut Chart
-                </button>
-                <button
-                  onClick={() => setChartView("bar")}
-                  aria-label="Tampilkan bar chart"
-                  aria-pressed={chartView === "bar"}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    chartView === "bar"
-                      ? "bg-white dark:bg-white/[0.1] text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Bar Chart
-                </button>
+          {/* ── Chart 2: Distribusi Diagnosis ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.3, delay: 0.15 }}
+          >
+            <GlassCard className="h-full">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  Distribusi Diagnosis
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  Persentase berdasarkan jenis diagnosis
+                </p>
               </div>
-            </div>
 
-            <AnimatePresence mode="wait">
-              {chartView === "donut" ? (
-                <motion.div
-                  key="donut"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.25 }}
-                  className="flex flex-col lg:flex-row items-center gap-6"
-                >
-                  {/* Donut Chart */}
-                  <div className="relative flex-shrink-0" role="img" aria-label="Donut chart distribusi keluhan pasien">
-                    <ResponsiveContainer width={280} height={280}>
+              {diagnosisData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] text-sm text-slate-400">
+                  Tidak ada data
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="relative" role="img" aria-label="Donut chart distribusi diagnosis">
+                    <ResponsiveContainer width={300} height={300}>
                       <PieChart>
                         <Pie
-                          data={complaintDistribution}
+                          data={diagnosisData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={70}
-                          outerRadius={120}
+                          innerRadius={65}
+                          outerRadius={110}
                           dataKey="count"
-                          nameKey="complaint"
+                          nameKey="name"
                           activeShape={renderActiveShape}
                           onMouseEnter={(_, index) => setActivePieIndex(index)}
                           onMouseLeave={() => setActivePieIndex(-1)}
+                          label={renderPieLabel}
                           animationDuration={800}
                           animationEasing="ease-out"
                           stroke="none"
                         >
-                          {complaintDistribution.map((entry, index) => (
+                          {diagnosisData.map((entry, index) => (
                             <Cell
                               key={index}
                               fill={entry.color}
                               opacity={
-                                activePieIndex === -1 || activePieIndex === index
-                                  ? 1
-                                  : 0.4
+                                activePieIndex === -1 || activePieIndex === index ? 1 : 0.4
                               }
                               style={{ transition: "opacity 200ms ease" }}
                             />
@@ -707,21 +782,21 @@ export default function VisualizationPage() {
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
-                    {/* Center Label */}
+                    {/* Center label */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      {activePieIndex >= 0 ? (
+                      {activePieIndex >= 0 && activePieIndex < diagnosisData.length ? (
                         <>
                           <span className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                            {complaintDistribution[activePieIndex].count}
+                            {diagnosisData[activePieIndex].count}
                           </span>
                           <span className="text-xs text-slate-500 dark:text-slate-400 max-w-[100px] text-center leading-tight">
-                            {complaintDistribution[activePieIndex].complaint}
+                            {diagnosisData[activePieIndex].name}
                           </span>
                         </>
                       ) : (
                         <>
                           <span className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                            {totalComplaints}
+                            {totalDiagnosis}
                           </span>
                           <span className="text-xs text-slate-500 dark:text-slate-400">
                             Total
@@ -731,30 +806,65 @@ export default function VisualizationPage() {
                     </div>
                   </div>
 
-                  {/* Legend */}
-                  <div className="flex-1 w-full lg:w-auto">
-                    <PieLegend
-                      data={complaintDistribution}
-                      activeIndex={activePieIndex}
-                      onHover={setActivePieIndex}
-                      onLeave={() => setActivePieIndex(-1)}
-                    />
+                  {/* Pie Legend */}
+                  <div className="w-full mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                    {diagnosisData.map((item, index) => (
+                      <div
+                        key={item.name}
+                        onMouseEnter={() => setActivePieIndex(index)}
+                        onMouseLeave={() => setActivePieIndex(-1)}
+                        className={`flex items-center gap-2 px-2 py-1 rounded-lg cursor-pointer transition-all duration-200 text-sm ${
+                          activePieIndex === index
+                            ? "bg-white/60 dark:bg-white/[0.06]"
+                            : "hover:bg-white/40 dark:hover:bg-white/[0.03]"
+                        }`}
+                      >
+                        <span
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="flex-1 text-slate-700 dark:text-slate-300 truncate text-xs">
+                          {item.name}
+                        </span>
+                        <span className="font-mono text-xs font-medium text-slate-900 dark:text-slate-50 tabular-nums">
+                          {item.count}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                </motion.div>
+                </div>
+              )}
+            </GlassCard>
+          </motion.div>
+
+          {/* ── Chart 3: Top 10 Obat yang Diresepkan ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.3, delay: 0.2 }}
+          >
+            <GlassCard className="h-full">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  Top 10 Obat yang Diresepkan
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  Obat paling sering diresepkan
+                </p>
+              </div>
+
+              {drugData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] text-sm text-slate-400">
+                  Tidak ada data
+                </div>
               ) : (
-                <motion.div
-                  key="bar"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  <div role="img" aria-label="Bar chart distribusi keluhan pasien">
-                  <ResponsiveContainer width="100%" height={sortedComplaints.length * 48 + 20}>
+                <div role="img" aria-label="Horizontal bar chart obat yang diresepkan">
+                  <ResponsiveContainer width="100%" height={Math.max(300, drugData.length * 40 + 20)}>
                     <BarChart
                       layout="vertical"
-                      data={sortedComplaints}
-                      margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
+                      data={drugData}
+                      margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
@@ -766,51 +876,134 @@ export default function VisualizationPage() {
                         tick={{ fill: "#94a3b8", fontSize: 12 }}
                         axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
                         tickLine={false}
+                        allowDecimals={false}
                       />
                       <YAxis
                         type="category"
-                        dataKey="complaint"
-                        width={160}
-                        tick={{ fill: "#94a3b8", fontSize: 12 }}
+                        dataKey="drug"
+                        width={120}
+                        tick={{ fill: "#94a3b8", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                       />
-                      <Tooltip content={<ComplaintBarTooltip />} />
+                      <Tooltip content={<DrugBarTooltip />} />
                       <Bar
                         dataKey="count"
                         radius={[0, 6, 6, 0]}
                         barSize={24}
                         animationDuration={1000}
                         animationEasing="ease-out"
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        label={({ x, y, width, height, index }: any) => {
-                          const entry = sortedComplaints[index];
-                          return (
-                            <text
-                              x={x + width + 8}
-                              y={y + height / 2}
-                              fill="#94a3b8"
-                              fontSize={12}
-                              dominantBaseline="central"
-                              fontFamily="monospace"
-                            >
-                              {entry?.percentage}%
-                            </text>
-                          );
-                        }}
                       >
-                        {sortedComplaints.map((entry, index) => (
-                          <Cell key={index} fill={entry.color} />
+                        {drugData.map((_, index) => (
+                          <Cell
+                            key={index}
+                            fill={index === 0 ? "#8b5cf6" : `rgba(139, 92, 246, ${0.9 - index * 0.06})`}
+                          />
                         ))}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                  </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </GlassCard>
-        </motion.div>
+            </GlassCard>
+          </motion.div>
+
+          {/* ── Chart 4: Distribusi Gender & Umur ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={{ duration: 0.3, delay: 0.25 }}
+          >
+            <GlassCard className="h-full">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                  Distribusi Gender dan Umur
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                  Persebaran pasien berdasarkan rentang usia dan jenis kelamin
+                </p>
+              </div>
+
+              <div role="img" aria-label="Stacked bar chart distribusi gender dan umur">
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    data={genderAgeData}
+                    margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="rgba(148,163,184,0.1)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="ageRange"
+                      tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      axisLine={{ stroke: "rgba(148,163,184,0.2)" }}
+                      tickLine={false}
+                      tickMargin={8}
+                      label={{
+                        value: "Rentang Usia",
+                        position: "insideBottom",
+                        offset: -4,
+                        fill: "#94a3b8",
+                        fontSize: 11,
+                      }}
+                    />
+                    <YAxis
+                      tick={{ fill: "#94a3b8", fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickMargin={4}
+                      allowDecimals={false}
+                    />
+                    <Tooltip content={<GenderAgeTooltip />} />
+                    <Legend
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      content={(props: any) => {
+                        const { payload } = props;
+                        return (
+                          <div className="flex items-center justify-center gap-6 mt-2">
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            {payload?.map((entry: any, index: number) => (
+                              <div key={index} className="flex items-center gap-2 text-sm">
+                                <span
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: entry.color }}
+                                />
+                                <span className="text-slate-600 dark:text-slate-400">
+                                  {entry.value}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
+                    <Bar
+                      dataKey="Perempuan"
+                      stackId="gender"
+                      fill="#ec4899"
+                      radius={[0, 0, 0, 0]}
+                      barSize={36}
+                      animationDuration={1000}
+                      animationEasing="ease-out"
+                    />
+                    <Bar
+                      dataKey="Laki-laki"
+                      stackId="gender"
+                      fill="#3b82f6"
+                      radius={[6, 6, 0, 0]}
+                      barSize={36}
+                      animationDuration={1200}
+                      animationEasing="ease-out"
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </GlassCard>
+          </motion.div>
+        </div>
       </div>
     </PageTransition>
   );
