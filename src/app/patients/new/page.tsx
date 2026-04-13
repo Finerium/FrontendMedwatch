@@ -2,147 +2,172 @@
 
 import { PageTransition } from "@/components/layout/PageTransition";
 import { GlassCard } from "@/components/shared/GlassCard";
-import { motion } from "framer-motion";
-import { patients } from "@/data/patients";
+import { motion, AnimatePresence } from "framer-motion";
 import { drugs } from "@/data/drugs";
-import { provinceData } from "@/data/indonesia-map";
+import { useHydratedPatientStore } from "@/lib/use-hydrated-store";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, useMemo, Suspense } from "react";
-import { ArrowLeft, Save, Loader2, X, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2, X, Check, Search } from "lucide-react";
 import { toast } from "sonner";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface FormData {
   name: string;
-  nik: string;
   age: string;
   gender: string;
-  phone: string;
   address: string;
-  province: string;
+  phone: string;
+  visitDate: string;
   complaint: string;
-  assignedDrugs: string[];
-  status: string;
+  vitalSigns: string;
+  diagnosis: string;
+  prescribedDrugs: string[];
 }
 
 interface FormErrors {
   name?: string;
-  nik?: string;
   age?: string;
   gender?: string;
-  phone?: string;
   address?: string;
-  province?: string;
   complaint?: string;
+  diagnosis?: string;
+  prescribedDrugs?: string;
 }
 
-const complaints = [
-  "Hipertensi",
-  "Demam",
-  "Infeksi Saluran Napas",
-  "Nyeri Sendi",
-  "Diabetes Mellitus",
-  "GERD",
-  "Alergi",
-  "Asma",
-  "Migrain",
-  "Infeksi Saluran Kemih",
-  "Dermatitis",
-  "Dispepsia",
-  "Bronkitis",
-  "Anemia",
-  "Gangguan Kecemasan",
-];
+// ---------------------------------------------------------------------------
+// Style constants
+// ---------------------------------------------------------------------------
 
 const inputClasses =
   "w-full px-4 py-2.5 rounded-xl text-sm bg-white/50 dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-slate-900 dark:text-slate-50 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all duration-200";
 
-const selectClasses =
-  "w-full px-4 py-2.5 rounded-xl text-sm bg-white/50 dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/30 transition-all duration-200 appearance-none";
-
-const labelClasses = "text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block";
+const labelClasses =
+  "text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block";
 
 const errorClasses = "text-xs text-red-500 mt-1";
 
-function PatientFormContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const editId = searchParams.get("edit");
-  const isEditing = !!editId;
-  const editingPatient = isEditing
-    ? patients.find((p) => p.id === editId)
-    : null;
+const errorInputClasses =
+  "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50";
 
-  const [formData, setFormData] = useState<FormData>(() =>
-    editingPatient
-      ? {
-          name: editingPatient.name,
-          nik: editingPatient.nik,
-          age: String(editingPatient.age),
-          gender: editingPatient.gender,
-          phone: editingPatient.phone,
-          address: editingPatient.address,
-          province: editingPatient.province,
-          complaint: editingPatient.complaint,
-          assignedDrugs: editingPatient.assignedDrugs,
-          status: editingPatient.status,
-        }
-      : {
-          name: "",
-          nik: "",
-          age: "",
-          gender: "",
-          phone: "",
-          address: "",
-          province: "",
-          complaint: "",
-          assignedDrugs: [],
-          status: "Aktif",
-        }
+const sectionTitleClasses =
+  "text-base font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function todayISO(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
+function FormSkeleton() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="h-4 w-48 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse mb-4" />
+        <div className="h-8 w-64 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse" />
+        <div className="h-4 w-80 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse mt-2" />
+      </div>
+      <div className="max-w-3xl mx-auto space-y-6">
+        {[1, 2, 3].map((section) => (
+          <div
+            key={section}
+            className="bg-white/70 dark:bg-white/[0.05] backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.08] rounded-2xl shadow-lg dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] p-6"
+          >
+            <div className="h-5 w-32 rounded bg-white/50 dark:bg-white/[0.05] animate-pulse mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Array.from({ length: section === 3 ? 4 : 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={i === 0 ? "md:col-span-2" : "md:col-span-1"}
+                >
+                  <div className="h-4 w-24 rounded bg-white/50 dark:bg-white/[0.05] animate-pulse mb-1.5" />
+                  <div className="h-10 w-full rounded-xl bg-white/50 dark:bg-white/[0.05] animate-pulse" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Main form component
+// ---------------------------------------------------------------------------
+
+function PatientFormContent() {
+  const router = useRouter();
+  const { addPatient, hydrated } = useHydratedPatientStore();
+
+  const [formData, setFormData] = useState<FormData>({
+    name: "",
+    age: "",
+    gender: "",
+    address: "",
+    phone: "",
+    visitDate: todayISO(),
+    complaint: "",
+    vitalSigns: "",
+    diagnosis: "",
+    prescribedDrugs: [],
+  });
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [drugSearch, setDrugSearch] = useState("");
 
-  const sortedProvinces = useMemo(() => {
-    return [...provinceData].sort((a, b) => a.name.localeCompare(b.name));
-  }, []);
+  // -- Validation -----------------------------------------------------------
 
   const validateField = (
     field: keyof FormErrors,
-    value: string
+    value: string | string[]
   ): string | undefined => {
     switch (field) {
-      case "name":
-        if (!value || value.trim().length < 3)
-          return "Nama harus minimal 3 karakter";
+      case "name": {
+        const v = (value as string).trim();
+        if (!v || v.length < 2) return "Nama harus minimal 2 karakter";
         return undefined;
-      case "nik":
-        if (!value || !/^\d{16}$/.test(value))
-          return "NIK harus 16 digit angka";
-        return undefined;
+      }
       case "age": {
-        const ageNum = parseInt(value, 10);
-        if (!value || isNaN(ageNum) || ageNum < 1 || ageNum > 120)
-          return "Usia harus antara 1-120 tahun";
+        const num = parseInt(value as string, 10);
+        if (!value || isNaN(num) || num < 0 || num > 120)
+          return "Usia harus antara 0-120 tahun";
         return undefined;
       }
       case "gender":
         if (!value) return "Pilih jenis kelamin";
         return undefined;
-      case "phone":
-        if (!value || !/^08\d{8,11}$/.test(value))
-          return "Nomor telepon harus dimulai dengan 08 dan 10-13 digit";
+      case "address": {
+        const v = (value as string).trim();
+        if (!v) return "Alamat wajib diisi";
         return undefined;
-      case "address":
-        if (!value || value.trim().length === 0) return "Alamat wajib diisi";
+      }
+      case "complaint": {
+        const v = (value as string).trim();
+        if (!v || v.length < 5) return "Keluhan harus minimal 5 karakter";
         return undefined;
-      case "province":
-        if (!value) return "Pilih provinsi";
+      }
+      case "diagnosis": {
+        const v = (value as string).trim();
+        if (!v || v.length < 3) return "Diagnosa harus minimal 3 karakter";
         return undefined;
-      case "complaint":
-        if (!value) return "Pilih keluhan utama";
+      }
+      case "prescribedDrugs":
+        if (!value || (value as string[]).length === 0)
+          return "Pilih minimal 1 obat";
         return undefined;
       default:
         return undefined;
@@ -152,49 +177,50 @@ function PatientFormContent() {
   const handleBlur = (field: keyof FormErrors) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
     const value = formData[field as keyof FormData];
-    const error = validateField(field, typeof value === "string" ? value : "");
+    const error = validateField(field, value);
     setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const handleChange = (
-    field: keyof FormData,
-    value: string | string[]
-  ) => {
+  const handleChange = (field: keyof FormData, value: string | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (touched[field]) {
-      const error = validateField(
-        field as keyof FormErrors,
-        typeof value === "string" ? value : ""
-      );
+      const error = validateField(field as keyof FormErrors, value);
       setErrors((prev) => ({ ...prev, [field]: error }));
     }
   };
 
-  const toggleDrug = (drugId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      assignedDrugs: prev.assignedDrugs.includes(drugId)
-        ? prev.assignedDrugs.filter((id) => id !== drugId)
-        : [...prev.assignedDrugs, drugId],
-    }));
+  const toggleDrug = (drugName: string) => {
+    const next = formData.prescribedDrugs.includes(drugName)
+      ? formData.prescribedDrugs.filter((n) => n !== drugName)
+      : [...formData.prescribedDrugs, drugName];
+    handleChange("prescribedDrugs", next);
   };
 
-  const hasErrors = useMemo(() => {
-    return Object.values(errors).some((e) => !!e);
-  }, [errors]);
+  // -- Filtered drugs for search --------------------------------------------
+
+  const filteredDrugs = useMemo(() => {
+    if (!drugSearch.trim()) return drugs;
+    const q = drugSearch.toLowerCase();
+    return drugs.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.genericName.toLowerCase().includes(q)
+    );
+  }, [drugSearch]);
+
+  // -- Submit ---------------------------------------------------------------
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const fieldsToValidate: (keyof FormErrors)[] = [
       "name",
-      "nik",
       "age",
       "gender",
-      "phone",
       "address",
-      "province",
       "complaint",
+      "diagnosis",
+      "prescribedDrugs",
     ];
 
     const newErrors: FormErrors = {};
@@ -204,7 +230,7 @@ function PatientFormContent() {
     for (const field of fieldsToValidate) {
       newTouched[field] = true;
       const value = formData[field as keyof FormData];
-      const error = validateField(field, typeof value === "string" ? value : "");
+      const error = validateField(field, value);
       if (error) {
         newErrors[field] = error;
         hasValidationErrors = true;
@@ -217,14 +243,31 @@ function PatientFormContent() {
     if (hasValidationErrors) return;
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    toast.success(
-      isEditing
-        ? "Data pasien berhasil diperbarui"
-        : "Pasien berhasil ditambahkan"
-    );
+
+    addPatient({
+      name: formData.name.trim(),
+      age: parseInt(formData.age, 10),
+      gender: formData.gender as "Perempuan" | "Laki-laki",
+      address: formData.address.trim(),
+      phone: formData.phone.trim() || undefined,
+      complaint: formData.complaint.trim(),
+      vitalSigns: formData.vitalSigns.trim() || undefined,
+      diagnosis: formData.diagnosis.trim(),
+      prescribedDrugs: formData.prescribedDrugs,
+      visitDate: formData.visitDate,
+    });
+
+    toast.success("Pasien berhasil ditambahkan");
     router.push("/patients");
   };
+
+  // -- Loading state --------------------------------------------------------
+
+  if (!hydrated) {
+    return <FormSkeleton />;
+  }
+
+  // -- Render ---------------------------------------------------------------
 
   return (
     <PageTransition>
@@ -244,7 +287,7 @@ function PatientFormContent() {
             transition={{ delay: 0.05, duration: 0.3 }}
             className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50"
           >
-            {isEditing ? "Edit Data Pasien" : "Tambah Pasien Baru"}
+            Tambah Pasien Baru
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
@@ -252,23 +295,30 @@ function PatientFormContent() {
             transition={{ delay: 0.1, duration: 0.3 }}
             className="text-sm text-slate-500 dark:text-slate-400 mt-1"
           >
-            {isEditing
-              ? "Perbarui informasi pasien"
-              : "Isi formulir di bawah untuk mendaftarkan pasien baru"}
+            Isi formulir di bawah untuk mendaftarkan pasien baru
           </motion.p>
         </div>
 
-        {/* Form Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.3 }}
-          className="max-w-2xl mx-auto"
-        >
-          <GlassCard>
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nama Lengkap */}
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
+          {/* ============================================================= */}
+          {/* Section 1 - Identitas */}
+          {/* ============================================================= */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12, duration: 0.3 }}
+          >
+            <GlassCard>
+              <h2 className={sectionTitleClasses}>
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/10 text-blue-500 text-xs font-bold">
+                  1
+                </span>
+                Identitas Pasien
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Nama */}
                 <div className="md:col-span-2">
                   <label htmlFor="name" className={labelClasses}>
                     Nama Lengkap <span className="text-red-400">*</span>
@@ -278,9 +328,7 @@ function PatientFormContent() {
                     type="text"
                     placeholder="Masukkan nama lengkap pasien"
                     className={`${inputClasses} ${
-                      errors.name && touched.name
-                        ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                        : ""
+                      errors.name && touched.name ? errorInputClasses : ""
                     }`}
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
@@ -297,54 +345,19 @@ function PatientFormContent() {
                   )}
                 </div>
 
-                {/* NIK */}
-                <div className="md:col-span-1">
-                  <label htmlFor="nik" className={labelClasses}>
-                    NIK <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    id="nik"
-                    type="text"
-                    placeholder="16 digit NIK"
-                    maxLength={16}
-                    className={`${inputClasses} ${
-                      errors.nik && touched.nik
-                        ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                        : ""
-                    }`}
-                    value={formData.nik}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      handleChange("nik", val);
-                    }}
-                    onBlur={() => handleBlur("nik")}
-                  />
-                  {errors.nik && touched.nik && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={errorClasses}
-                    >
-                      {errors.nik}
-                    </motion.p>
-                  )}
-                </div>
-
-                {/* Usia */}
-                <div className="md:col-span-1">
+                {/* Umur */}
+                <div>
                   <label htmlFor="age" className={labelClasses}>
-                    Usia <span className="text-red-400">*</span>
+                    Umur <span className="text-red-400">*</span>
                   </label>
                   <input
                     id="age"
                     type="number"
                     placeholder="Tahun"
-                    min={1}
+                    min={0}
                     max={120}
                     className={`${inputClasses} ${
-                      errors.age && touched.age
-                        ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                        : ""
+                      errors.age && touched.age ? errorInputClasses : ""
                     }`}
                     value={formData.age}
                     onChange={(e) => handleChange("age", e.target.value)}
@@ -361,48 +374,49 @@ function PatientFormContent() {
                   )}
                 </div>
 
-                {/* Jenis Kelamin */}
-                <div className="md:col-span-1">
-                  <label htmlFor="gender" className={labelClasses}>
+                {/* Gender - radio buttons */}
+                <div>
+                  <label className={labelClasses}>
                     Jenis Kelamin <span className="text-red-400">*</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      id="gender"
-                      className={`${selectClasses} ${
-                        !formData.gender
-                          ? "text-slate-400 dark:text-slate-500"
-                          : ""
-                      } ${
-                        errors.gender && touched.gender
-                          ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                          : ""
-                      }`}
-                      value={formData.gender}
-                      onChange={(e) => handleChange("gender", e.target.value)}
-                      onBlur={() => handleBlur("gender")}
-                    >
-                      <option value="" disabled>
-                        Pilih jenis kelamin
-                      </option>
-                      <option value="Laki-laki">Laki-laki</option>
-                      <option value="Perempuan">Perempuan</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                      <svg
-                        className="h-4 w-4 text-slate-400 dark:text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+                  <div className="flex gap-3 mt-1">
+                    {(["Perempuan", "Laki-laki"] as const).map((option) => (
+                      <label
+                        key={option}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm cursor-pointer transition-all duration-200 border ${
+                          formData.gender === option
+                            ? "bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 font-medium"
+                            : "bg-white/50 dark:bg-white/[0.05] border-black/[0.06] dark:border-white/[0.08] text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-white/[0.08]"
+                        } ${
+                          errors.gender && touched.gender
+                            ? errorInputClasses
+                            : ""
+                        }`}
                       >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={option}
+                          checked={formData.gender === option}
+                          onChange={(e) =>
+                            handleChange("gender", e.target.value)
+                          }
+                          className="sr-only"
                         />
-                      </svg>
-                    </div>
+                        <span
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                            formData.gender === option
+                              ? "border-blue-500 bg-blue-500"
+                              : "border-slate-300 dark:border-slate-600"
+                          }`}
+                        >
+                          {formData.gender === option && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                          )}
+                        </span>
+                        {option}
+                      </label>
+                    ))}
                   </div>
                   {errors.gender && touched.gender && (
                     <motion.p
@@ -411,39 +425,6 @@ function PatientFormContent() {
                       className={errorClasses}
                     >
                       {errors.gender}
-                    </motion.p>
-                  )}
-                </div>
-
-                {/* No. Telepon */}
-                <div className="md:col-span-1">
-                  <label htmlFor="phone" className={labelClasses}>
-                    No. Telepon <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    id="phone"
-                    type="text"
-                    placeholder="08xxxxxxxxxx"
-                    maxLength={13}
-                    className={`${inputClasses} ${
-                      errors.phone && touched.phone
-                        ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                        : ""
-                    }`}
-                    value={formData.phone}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      handleChange("phone", val);
-                    }}
-                    onBlur={() => handleBlur("phone")}
-                  />
-                  {errors.phone && touched.phone && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={errorClasses}
-                    >
-                      {errors.phone}
                     </motion.p>
                   )}
                 </div>
@@ -459,7 +440,7 @@ function PatientFormContent() {
                     placeholder="Masukkan alamat lengkap"
                     className={`${inputClasses} resize-none ${
                       errors.address && touched.address
-                        ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
+                        ? errorInputClasses
                         : ""
                     }`}
                     value={formData.address}
@@ -477,113 +458,98 @@ function PatientFormContent() {
                   )}
                 </div>
 
-                {/* Provinsi */}
-                <div className="md:col-span-1">
-                  <label htmlFor="province" className={labelClasses}>
-                    Provinsi <span className="text-red-400">*</span>
+                {/* No HP */}
+                <div className="md:col-span-2">
+                  <label htmlFor="phone" className={labelClasses}>
+                    No. HP{" "}
+                    <span className="text-slate-400 dark:text-slate-500 font-normal">
+                      (opsional)
+                    </span>
                   </label>
-                  <div className="relative">
-                    <select
-                      id="province"
-                      className={`${selectClasses} ${
-                        !formData.province
-                          ? "text-slate-400 dark:text-slate-500"
-                          : ""
-                      } ${
-                        errors.province && touched.province
-                          ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                          : ""
-                      }`}
-                      value={formData.province}
-                      onChange={(e) =>
-                        handleChange("province", e.target.value)
-                      }
-                      onBlur={() => handleBlur("province")}
-                    >
-                      <option value="" disabled>
-                        Pilih provinsi
-                      </option>
-                      {sortedProvinces.map((prov) => (
-                        <option key={prov.id} value={prov.name}>
-                          {prov.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                      <svg
-                        className="h-4 w-4 text-slate-400 dark:text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  {errors.province && touched.province && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={errorClasses}
-                    >
-                      {errors.province}
-                    </motion.p>
-                  )}
+                  <input
+                    id="phone"
+                    type="text"
+                    placeholder="08xxxxxxxxxx"
+                    maxLength={15}
+                    className={inputClasses}
+                    value={formData.phone}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      handleChange("phone", val);
+                    }}
+                  />
                 </div>
+              </div>
+            </GlassCard>
+          </motion.div>
 
-                {/* Keluhan Utama */}
-                <div className="md:col-span-1">
+          {/* ============================================================= */}
+          {/* Section 2 - Kunjungan */}
+          {/* ============================================================= */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.3 }}
+          >
+            <GlassCard>
+              <h2 className={sectionTitleClasses}>
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/10 text-purple-500 text-xs font-bold">
+                  2
+                </span>
+                Kunjungan
+              </h2>
+
+              <div>
+                <label htmlFor="visitDate" className={labelClasses}>
+                  Tanggal Kunjungan
+                </label>
+                <input
+                  id="visitDate"
+                  type="date"
+                  className={`${inputClasses} max-w-xs`}
+                  value={formData.visitDate}
+                  onChange={(e) => handleChange("visitDate", e.target.value)}
+                />
+              </div>
+            </GlassCard>
+          </motion.div>
+
+          {/* ============================================================= */}
+          {/* Section 3 - SOAP */}
+          {/* ============================================================= */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.24, duration: 0.3 }}
+          >
+            <GlassCard>
+              <h2 className={sectionTitleClasses}>
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">
+                  3
+                </span>
+                SOAP
+              </h2>
+
+              <div className="space-y-5">
+                {/* Subjective - Keluhan */}
+                <div>
                   <label htmlFor="complaint" className={labelClasses}>
-                    Keluhan Utama <span className="text-red-400">*</span>
+                    Keluhan / Subjective{" "}
+                    <span className="text-red-400">*</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      id="complaint"
-                      className={`${selectClasses} ${
-                        !formData.complaint
-                          ? "text-slate-400 dark:text-slate-500"
-                          : ""
-                      } ${
-                        errors.complaint && touched.complaint
-                          ? "border-red-400/50 focus:ring-red-500/20 focus:border-red-400/50"
-                          : ""
-                      }`}
-                      value={formData.complaint}
-                      onChange={(e) =>
-                        handleChange("complaint", e.target.value)
-                      }
-                      onBlur={() => handleBlur("complaint")}
-                    >
-                      <option value="" disabled>
-                        Pilih keluhan utama
-                      </option>
-                      {complaints.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                      <svg
-                        className="h-4 w-4 text-slate-400 dark:text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
+                  <textarea
+                    id="complaint"
+                    rows={3}
+                    placeholder="Tuliskan keluhan pasien secara detail"
+                    className={`${inputClasses} resize-none ${
+                      errors.complaint && touched.complaint
+                        ? errorInputClasses
+                        : ""
+                    }`}
+                    value={formData.complaint}
+                    onChange={(e) => handleChange("complaint", e.target.value)}
+                    onBlur={() => handleBlur("complaint")}
+                  />
                   {errors.complaint && touched.complaint && (
                     <motion.p
                       initial={{ opacity: 0, y: -4 }}
@@ -595,24 +561,126 @@ function PatientFormContent() {
                   )}
                 </div>
 
-                {/* Obat yang Diberikan */}
-                <div className="md:col-span-2">
-                  <label className={labelClasses}>Obat yang Diberikan</label>
+                {/* Objective - Tanda Vital */}
+                <div>
+                  <label htmlFor="vitalSigns" className={labelClasses}>
+                    Tanda Vital / Objective{" "}
+                    <span className="text-slate-400 dark:text-slate-500 font-normal">
+                      (opsional)
+                    </span>
+                  </label>
+                  <textarea
+                    id="vitalSigns"
+                    rows={2}
+                    placeholder="TD: 120/80, Nadi: 80x/m, Suhu: 36.5&deg;C"
+                    className={`${inputClasses} resize-none`}
+                    value={formData.vitalSigns}
+                    onChange={(e) => handleChange("vitalSigns", e.target.value)}
+                  />
+                </div>
+
+                {/* Assessment - Diagnosa */}
+                <div>
+                  <label htmlFor="diagnosis" className={labelClasses}>
+                    Diagnosa / Assessment{" "}
+                    <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    id="diagnosis"
+                    type="text"
+                    placeholder="Masukkan diagnosa"
+                    className={`${inputClasses} ${
+                      errors.diagnosis && touched.diagnosis
+                        ? errorInputClasses
+                        : ""
+                    }`}
+                    value={formData.diagnosis}
+                    onChange={(e) => handleChange("diagnosis", e.target.value)}
+                    onBlur={() => handleBlur("diagnosis")}
+                  />
+                  {errors.diagnosis && touched.diagnosis && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={errorClasses}
+                    >
+                      {errors.diagnosis}
+                    </motion.p>
+                  )}
+                </div>
+
+                {/* Planning - Resep Obat */}
+                <div>
+                  <label className={labelClasses}>
+                    Resep Obat / Planning{" "}
+                    <span className="text-red-400">*</span>
+                  </label>
                   <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
-                    Pilih satu atau lebih obat yang diberikan kepada pasien
+                    Pilih satu atau lebih obat yang diresepkan untuk pasien
                   </p>
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white/30 dark:bg-white/[0.02] p-3">
+
+                  {/* Selected drugs as tags */}
+                  <AnimatePresence>
+                    {formData.prescribedDrugs.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex flex-wrap gap-1.5 mb-3"
+                      >
+                        {formData.prescribedDrugs.map((drugName) => (
+                          <motion.span
+                            key={drugName}
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                          >
+                            {drugName}
+                            <button
+                              type="button"
+                              onClick={() => toggleDrug(drugName)}
+                              className="hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </motion.span>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Drug search */}
+                  <div className="relative mb-3">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Cari obat..."
+                      className={`${inputClasses} pl-9`}
+                      value={drugSearch}
+                      onChange={(e) => setDrugSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Drug grid */}
+                  <div
+                    className={`max-h-56 overflow-y-auto rounded-xl border bg-white/30 dark:bg-white/[0.02] p-3 ${
+                      errors.prescribedDrugs && touched.prescribedDrugs
+                        ? "border-red-400/50"
+                        : "border-black/[0.06] dark:border-white/[0.08]"
+                    }`}
+                  >
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {drugs.map((drug) => {
-                        const isSelected = formData.assignedDrugs.includes(
-                          drug.id
+                      {filteredDrugs.map((drug) => {
+                        const isSelected = formData.prescribedDrugs.includes(
+                          drug.name
                         );
                         return (
                           <motion.button
                             key={drug.id}
                             type="button"
                             whileTap={{ scale: 0.97 }}
-                            onClick={() => toggleDrug(drug.id)}
+                            onClick={() => toggleDrug(drug.name)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 text-left ${
                               isSelected
                                 ? "bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 font-medium"
@@ -632,137 +700,72 @@ function PatientFormContent() {
                           </motion.button>
                         );
                       })}
+                      {filteredDrugs.length === 0 && (
+                        <p className="col-span-full text-center text-sm text-slate-400 dark:text-slate-500 py-4">
+                          Tidak ada obat ditemukan
+                        </p>
+                      )}
                     </div>
                   </div>
-                  {formData.assignedDrugs.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      className="mt-2 flex flex-wrap gap-1.5"
+                  {errors.prescribedDrugs && touched.prescribedDrugs && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={errorClasses}
                     >
-                      {formData.assignedDrugs.map((drugId) => {
-                        const drug = drugs.find((d) => d.id === drugId);
-                        if (!drug) return null;
-                        return (
-                          <span
-                            key={drugId}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                          >
-                            {drug.name}
-                            <button
-                              type="button"
-                              onClick={() => toggleDrug(drugId)}
-                              className="hover:text-blue-800 dark:hover:text-blue-200 transition-colors"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </motion.div>
+                      {errors.prescribedDrugs}
+                    </motion.p>
                   )}
                 </div>
-
-                {/* Status */}
-                <div className="md:col-span-2">
-                  <label htmlFor="status" className={labelClasses}>
-                    Status
-                  </label>
-                  <div className="relative max-w-xs">
-                    <select
-                      id="status"
-                      className={selectClasses}
-                      value={formData.status}
-                      onChange={(e) => handleChange("status", e.target.value)}
-                    >
-                      <option value="Aktif">Aktif</option>
-                      <option value="Tidak Aktif">Tidak Aktif</option>
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                      <svg
-                        className="h-4 w-4 text-slate-400 dark:text-slate-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 9l-7 7-7-7"
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div className="md:col-span-2">
-                  <div className="border-t border-black/[0.06] dark:border-white/[0.08]" />
-                </div>
-
-                {/* Actions */}
-                <div className="md:col-span-2 flex justify-end gap-3">
-                  <Link
-                    href="/patients"
-                    className="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/[0.05] border border-transparent hover:border-black/[0.06] dark:hover:border-white/[0.08] transition-all duration-200"
-                  >
-                    Batal
-                  </Link>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || hasErrors}
-                    className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25 transition-all duration-200 ${
-                      isSubmitting || hasErrors
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:shadow-blue-500/30"
-                    }`}
-                  >
-                    {isSubmitting ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    {isEditing ? "Perbarui" : "Simpan"}
-                  </button>
-                </div>
               </div>
-            </form>
-          </GlassCard>
-        </motion.div>
+            </GlassCard>
+          </motion.div>
+
+          {/* ============================================================= */}
+          {/* Actions */}
+          {/* ============================================================= */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.3 }}
+            className="flex justify-end gap-3 pb-8"
+          >
+            <Link
+              href="/patients"
+              className="px-6 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/[0.05] border border-transparent hover:border-black/[0.06] dark:hover:border-white/[0.08] transition-all duration-200"
+            >
+              Batal
+            </Link>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/25 transition-all duration-200 ${
+                isSubmitting
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:shadow-blue-500/30"
+              }`}
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Simpan
+            </button>
+          </motion.div>
+        </form>
       </div>
     </PageTransition>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Page export with Suspense boundary
+// ---------------------------------------------------------------------------
+
 export default function NewPatientPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="space-y-8">
-          <div>
-            <div className="h-4 w-48 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse mb-4" />
-            <div className="h-8 w-64 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse" />
-            <div className="h-4 w-80 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse mt-2" />
-          </div>
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white/70 dark:bg-white/[0.05] backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.08] rounded-2xl shadow-lg dark:shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={i === 0 || i === 4 || i === 5 ? "md:col-span-2" : "md:col-span-1"}
-                  >
-                    <div className="h-4 w-24 rounded bg-white/50 dark:bg-white/[0.05] animate-pulse mb-1.5" />
-                    <div className="h-10 w-full rounded-xl bg-white/50 dark:bg-white/[0.05] animate-pulse" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<FormSkeleton />}>
       <PatientFormContent />
     </Suspense>
   );
