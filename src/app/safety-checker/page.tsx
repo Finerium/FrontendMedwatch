@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useAuthStore } from "@/lib/auth-store";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import type { Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
@@ -75,7 +76,7 @@ const OVERALL_STYLE: Record<SeverityWord, { color: string; bg: string; label: st
     color: "var(--safe-deep)",
     bg: "color-mix(in oklab, var(--safe) 18%, transparent)",
     label: "PERHATIAN RINGAN",
-    sub: "Interaksi minor; pantau pasien",
+    sub: "Interaksi minor; pantau sendiri",
   },
   sedang: {
     color: "var(--warn-deep)",
@@ -92,8 +93,15 @@ const OVERALL_STYLE: Record<SeverityWord, { color: string; bg: string; label: st
 };
 
 export default function SafetyCheckerPage() {
+  const user = useAuthStore((s) => s.user);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const isMasyarakat = user?.role === "masyarakat";
+
   const [drugDb, setDrugDb] = useState<DisplayDrug[]>([]);
+  const [drugsLoaded, setDrugsLoaded] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoaded, setPatientsLoaded] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [drugs, setDrugs] = useState<string[]>([]);
   const [drugQuery, setDrugQuery] = useState("");
@@ -103,6 +111,10 @@ export default function SafetyCheckerPage() {
   const [scanError, setScanError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!hydrated) fetchMe();
+  }, [hydrated, fetchMe]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -110,24 +122,38 @@ export default function SafetyCheckerPage() {
         if (cancelled) return;
         setDrugDb((data || []).map((d, i) => backendToDisplayDrug(d, i)));
       } catch {
-        if (cancelled) return;
-        setDrugDb([]);
-      }
-    })();
-    (async () => {
-      try {
-        const data = await api.get<Patient[]>("/api/patients");
-        if (cancelled) return;
-        setPatients(data || []);
-      } catch {
-        if (cancelled) return;
-        setPatients([]);
+        if (!cancelled) setDrugDb([]);
+      } finally {
+        if (!cancelled) setDrugsLoaded(true);
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (isMasyarakat) {
+      setPatients([]);
+      setPatientsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<Patient[]>("/api/patients");
+        if (!cancelled) setPatients(data || []);
+      } catch {
+        if (!cancelled) setPatients([]);
+      } finally {
+        if (!cancelled) setPatientsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, isMasyarakat]);
 
   const drugLookup = useMemo(
     () => Object.fromEntries(drugDb.map((d) => [d.name.toLowerCase(), d])),
@@ -183,16 +209,17 @@ export default function SafetyCheckerPage() {
     : "aman";
   const overallStyle = OVERALL_STYLE[overall];
 
+  const canScan = isMasyarakat ? drugs.length >= 1 : Boolean(patient) && drugs.length >= 1;
+
   const runScan = async () => {
-    if (!patient || drugs.length < 1) return;
+    if (!canScan) return;
     setScanning(true);
     setScanError(null);
     setScanned(false);
     try {
-      const data = await api.post<BackendSafetyResult>("/api/safety/check", {
-        drugs,
-        pasien_id: patient.id,
-      });
+      const payload: { drugs: string[]; pasien_id?: string } = { drugs };
+      if (patient) payload.pasien_id = patient.id;
+      const data = await api.post<BackendSafetyResult>("/api/safety/check", payload);
       setResult(data);
       setScanned(true);
     } catch (e) {
@@ -214,6 +241,13 @@ export default function SafetyCheckerPage() {
     setScanned(false);
     setResult(null);
   };
+
+  const subtitleCopy = isMasyarakat
+    ? "Self-check engine · cocokkan obat dengan riwayat alergi pribadi"
+    : "Severity engine · cross-reference 1.4M interaksi";
+  const headingItalic = isMasyarakat ? "obat-obat" : "keamanan";
+  const headingPrefix = isMasyarakat ? "Cek " : "Cek ";
+  const headingSuffix = isMasyarakat ? " saya." : " kombinasi.";
 
   return (
     <div
@@ -257,7 +291,7 @@ export default function SafetyCheckerPage() {
             textTransform: "uppercase",
           }}
         >
-          Severity engine · cross-reference 1.4M interaksi
+          {subtitleCopy}
         </span>
         <h1
           className="serif"
@@ -269,112 +303,129 @@ export default function SafetyCheckerPage() {
             marginBottom: 28,
           }}
         >
-          Cek <em style={{ fontStyle: "italic" }}>keamanan</em> kombinasi.
+          {headingPrefix}<em style={{ fontStyle: "italic" }}>{headingItalic}</em>{headingSuffix}
         </h1>
 
         <div className="sc-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18 }}>
           <div className="glass" style={{ padding: 24 }}>
-            <h3
-              className="mono"
-              style={{
-                fontSize: 11,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: "var(--ink-3)",
-                marginBottom: 12,
-              }}
-            >
-              1 · Pilih pasien
-            </h3>
-            {!patient ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24 }}>
-                {patients.length === 0 && (
-                  <div className="glass-thin" style={{ padding: 16, fontSize: 13, color: "var(--ink-3)" }}>
-                    Memuat daftar pasien…
+            {!isMasyarakat && (
+              <>
+                <h3
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-3)",
+                    marginBottom: 12,
+                  }}
+                >
+                  1 · Pilih pasien
+                </h3>
+                {!patient ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24, minHeight: 232 }}>
+                    {!patientsLoaded
+                      ? Array.from({ length: 4 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="skel"
+                            style={{ height: 52, borderRadius: 14 }}
+                            aria-hidden
+                          />
+                        ))
+                      : patients.length === 0
+                        ? (
+                            <div
+                              className="glass-thin"
+                              style={{ padding: 16, fontSize: 13, color: "var(--ink-3)" }}
+                            >
+                              Tidak ada pasien terdaftar.
+                            </div>
+                          )
+                        : patients.slice(0, 4).map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => setPatient(p)}
+                              className="lift"
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "52px 1fr auto",
+                                gap: 12,
+                                alignItems: "center",
+                                padding: 12,
+                                borderRadius: 14,
+                                border: "1px solid var(--line)",
+                                background: "var(--bg-2)",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                            >
+                              <span
+                                className="mono"
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--teal-deep)",
+                                  fontWeight: 600,
+                                  background: "var(--teal-soft)",
+                                  padding: "6px 8px",
+                                  borderRadius: 8,
+                                  textAlign: "center",
+                                }}
+                              >
+                                {p.id}
+                              </span>
+                              <div>
+                                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.nama}</div>
+                                <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                                  {p.umur || "-"} thn · {p.kategori || p.A?.diagnosa || "—"}
+                                </div>
+                              </div>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                <path d="m9 6 6 6-6 6" />
+                              </svg>
+                            </button>
+                          ))}
                   </div>
-                )}
-                {patients.slice(0, 4).map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setPatient(p)}
-                    className="lift"
+                ) : (
+                  <div
+                    className="glass-thin"
                     style={{
+                      padding: 16,
+                      marginBottom: 24,
                       display: "grid",
-                      gridTemplateColumns: "52px 1fr auto",
+                      gridTemplateColumns: "1fr auto",
                       gap: 12,
-                      alignItems: "center",
-                      padding: 12,
-                      borderRadius: 14,
-                      border: "1px solid var(--line)",
-                      background: "var(--bg-2)",
-                      cursor: "pointer",
-                      textAlign: "left",
                     }}
                   >
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: 11,
-                        color: "var(--teal-deep)",
-                        fontWeight: 600,
-                        background: "var(--teal-soft)",
-                        padding: "6px 8px",
-                        borderRadius: 8,
-                        textAlign: "center",
-                      }}
-                    >
-                      {p.id}
-                    </span>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 500 }}>{p.nama}</div>
-                      <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                        {p.umur || "-"} thn · {p.kategori || p.A?.diagnosa || "—"}
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                        <span className="mono" style={{ fontSize: 12, color: "var(--teal-deep)", fontWeight: 600 }}>
+                          {patient.id}
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{patient.nama}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                        {patient.umur || "-"} tahun
+                        {patient.kategori ? ` · ${patient.kategori}` : ""}
+                        {patient.A?.diagnosa ? ` · ${patient.A.diagnosa}` : ""}
                       </div>
                     </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                      <path d="m9 6 6 6-6 6" />
-                    </svg>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="glass-thin"
-                style={{
-                  padding: 16,
-                  marginBottom: 24,
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  gap: 12,
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                    <span className="mono" style={{ fontSize: 12, color: "var(--teal-deep)", fontWeight: 600 }}>
-                      {patient.id}
-                    </span>
-                    <span style={{ fontWeight: 500 }}>{patient.nama}</span>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => {
+                        setPatient(null);
+                        setScanned(false);
+                        setResult(null);
+                      }}
+                      style={{ alignSelf: "flex-start", padding: 6 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                        <path d="m6 6 12 12M18 6 6 18" />
+                      </svg>
+                    </button>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
-                    {patient.umur || "-"} tahun
-                    {patient.kategori ? ` · ${patient.kategori}` : ""}
-                    {patient.A?.diagnosa ? ` · ${patient.A.diagnosa}` : ""}
-                  </div>
-                </div>
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    setPatient(null);
-                    setScanned(false);
-                    setResult(null);
-                  }}
-                  style={{ alignSelf: "flex-start", padding: 6 }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                    <path d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                </button>
-              </div>
+                )}
+              </>
             )}
 
             <h3
@@ -387,7 +438,7 @@ export default function SafetyCheckerPage() {
                 marginBottom: 12,
               }}
             >
-              2 · Tambah obat untuk diskrining
+              {isMasyarakat ? "1 · Tambah obat yang Anda konsumsi" : "2 · Tambah obat untuk diskrining"}
             </h3>
             <div style={{ position: "relative" }}>
               <input
@@ -443,7 +494,7 @@ export default function SafetyCheckerPage() {
               )}
             </div>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, minHeight: 28 }}>
               {drugs.map((name) => (
                 <span
                   key={name}
@@ -468,21 +519,21 @@ export default function SafetyCheckerPage() {
               ))}
               {drugs.length === 0 && (
                 <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                  Belum ada obat ditambahkan.
+                  {!drugsLoaded ? "Memuat katalog obat…" : "Belum ada obat ditambahkan."}
                 </span>
               )}
             </div>
 
             <button
               onClick={runScan}
-              disabled={!patient || drugs.length < 1 || scanning}
+              disabled={!canScan || scanning}
               className="btn btn-primary"
               style={{
                 marginTop: 24,
                 width: "100%",
                 justifyContent: "center",
                 padding: "16px 22px",
-                opacity: !patient || drugs.length < 1 ? 0.5 : 1,
+                opacity: !canScan ? 0.5 : 1,
               }}
             >
               {scanning ? (
@@ -527,7 +578,7 @@ export default function SafetyCheckerPage() {
             )}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, minHeight: 360 }}>
             {scanned ? (
               <>
                 <div className="glass" style={{ padding: 28, position: "relative", overflow: "hidden" }}>
@@ -705,8 +756,9 @@ export default function SafetyCheckerPage() {
                     Menunggu pemindaian
                   </h3>
                   <p style={{ color: "var(--ink-3)", marginTop: 8, maxWidth: 360 }}>
-                    Pilih pasien dan tambahkan obat. Sistem akan cross-reference terhadap
-                    riwayat alergi, obat aktif, dan database interaksi BPOM.
+                    {isMasyarakat
+                      ? "Tambahkan obat yang Anda konsumsi. Sistem akan cocokkan dengan database interaksi BPOM."
+                      : "Pilih pasien dan tambahkan obat. Sistem akan cross-reference terhadap riwayat alergi, obat aktif, dan database interaksi BPOM."}
                   </p>
                 </div>
               </div>

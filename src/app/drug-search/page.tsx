@@ -11,6 +11,7 @@ export default function DrugSearchPage() {
   const [filter, setFilter] = useState<"all" | "otc" | "rx">("all");
   const [selected, setSelected] = useState<DisplayDrug | null>(null);
   const [drugs, setDrugs] = useState<DisplayDrug[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +25,8 @@ export default function DrugSearchPage() {
       } catch (e) {
         if (cancelled) return;
         setLoadError(e instanceof ApiError ? e.message : "Gagal memuat data obat");
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -77,7 +80,7 @@ export default function DrugSearchPage() {
             textTransform: "uppercase",
           }}
         >
-          Direktori obat · sinkron BPOM {drugs.length || "12.428"} entri
+          Direktori obat · sinkron BPOM {loaded ? drugs.length : "..."} entri
         </span>
         <h1
           className="serif"
@@ -158,13 +161,13 @@ export default function DrugSearchPage() {
           className="ds-grid"
           style={{ display: "grid", gap: 16, gridTemplateColumns: selected ? "1fr 1.1fr" : "1fr" }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 480 }}>
             <div style={{ display: "flex", justifyContent: "space-between", padding: "0 4px" }}>
               <span
                 className="mono"
                 style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.08em" }}
               >
-                {filtered.length} HASIL
+                {loaded ? `${filtered.length} HASIL` : "MEMUAT…"}
               </span>
               <span
                 className="mono"
@@ -173,7 +176,16 @@ export default function DrugSearchPage() {
                 POPULARITAS · A→Z
               </span>
             </div>
-            {filtered.map((d) => {
+            {!loaded
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="skel"
+                    style={{ height: 86, borderRadius: 18 }}
+                    aria-hidden
+                  />
+                ))
+              : filtered.map((d) => {
               const isSel = selected?.id === d.id;
               return (
                 <div
@@ -230,14 +242,14 @@ export default function DrugSearchPage() {
                 </div>
               );
             })}
-            {filtered.length === 0 && (
+            {loaded && filtered.length === 0 && (
               <div className="glass" style={{ padding: 40, textAlign: "center" }}>
                 <p style={{ color: "var(--ink-3)" }}>
                   {loadError
                     ? loadError
                     : query
                       ? `Tidak ada obat yang cocok dengan "${query}".`
-                      : "Memuat direktori obat…"}
+                      : "Direktori obat kosong."}
                 </p>
               </div>
             )}

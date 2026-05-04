@@ -181,80 +181,80 @@ export default function ExportPdfPage() {
               ))}
             </div>
 
-            {type === "soap-pasien" ? (
-              <>
-                <h3
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: "var(--ink-3)",
-                    marginBottom: 12,
-                  }}
-                >
-                  2 · Pilih pasien
-                </h3>
-                <select
-                  className="input"
-                  value={pasienId}
-                  onChange={(e) => setPasienId(e.target.value)}
-                  style={{ marginBottom: 22 }}
-                >
-                  {patients.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} — {p.nama}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <>
-                <h3
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: "0.1em",
-                    textTransform: "uppercase",
-                    color: "var(--ink-3)",
-                    marginBottom: 12,
-                  }}
-                >
-                  2 · Periode
-                </h3>
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
-                    marginBottom: 22,
-                  }}
-                >
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
-                      DARI
-                    </span>
-                    <input
-                      type="date"
-                      value={from}
-                      onChange={(e) => setFrom(e.target.value)}
-                      className="input"
-                    />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
-                      SAMPAI
-                    </span>
-                    <input
-                      type="date"
-                      value={to}
-                      onChange={(e) => setTo(e.target.value)}
-                      className="input"
-                    />
-                  </label>
-                </div>
-              </>
-            )}
+            <div style={{ minHeight: 110, marginBottom: 22 }}>
+              {type === "soap-pasien" ? (
+                <>
+                  <h3
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-3)",
+                      marginBottom: 12,
+                    }}
+                  >
+                    2 · Pilih pasien
+                  </h3>
+                  <select
+                    className="input"
+                    value={pasienId}
+                    onChange={(e) => setPasienId(e.target.value)}
+                  >
+                    {patients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.id} — {p.nama}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : (
+                <>
+                  <h3
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-3)",
+                      marginBottom: 12,
+                    }}
+                  >
+                    2 · Periode
+                  </h3>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 10,
+                    }}
+                  >
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
+                        DARI
+                      </span>
+                      <input
+                        type="date"
+                        value={from}
+                        onChange={(e) => setFrom(e.target.value)}
+                        className="input"
+                      />
+                    </label>
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
+                        SAMPAI
+                      </span>
+                      <input
+                        type="date"
+                        value={to}
+                        onChange={(e) => setTo(e.target.value)}
+                        className="input"
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
 
             <button
               className="btn btn-primary"

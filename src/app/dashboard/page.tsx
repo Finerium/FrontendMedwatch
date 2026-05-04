@@ -216,7 +216,7 @@ export default function DashboardPage() {
     if (!hydrated) fetchMe();
   }, [hydrated, fetchMe]);
 
-  const role = user?.role || "tenaga_kesehatan";
+  const role = user?.role;
   const isBidan = role === "tenaga_kesehatan";
   const isMasy = role === "masyarakat";
   const isAdmin = role === "admin";
@@ -229,12 +229,14 @@ export default function DashboardPage() {
     return "Selamat malam";
   })();
 
-  const displayName = user?.name || (isBidan ? "Bidan Siti" : isMasy ? "Budi" : "Ghaisan");
+  const displayName = user?.name || user?.username || "—";
   const subtitle = isBidan
     ? "Klinik Posyandu Cibiru · Bandung"
     : isMasy
       ? "Akun Masyarakat · Self-medication tracker"
-      : "Pusat Administrasi MedWatch";
+      : isAdmin
+        ? "Pusat Administrasi MedWatch"
+        : "Sinkronisasi sesi…";
 
   const kpis: Kpi[] = isBidan
     ? [
@@ -393,11 +395,18 @@ export default function DashboardPage() {
             gap: 16,
             gridTemplateColumns: "repeat(4, 1fr)",
             marginBottom: 36,
+            minHeight: 168,
           }}
         >
-          {kpis.map((k, i) => (
-            <KpiCard key={i} {...k} />
-          ))}
+          {!role
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="glass" style={{ padding: 22, minHeight: 168 }}>
+                  <div className="skel" style={{ height: 12, width: 100, borderRadius: 4 }} aria-hidden />
+                  <div className="skel" style={{ height: 48, width: 140, borderRadius: 6, marginTop: 18 }} aria-hidden />
+                  <div className="skel" style={{ height: 12, width: 80, borderRadius: 4, marginTop: 18 }} aria-hidden />
+                </div>
+              ))
+            : kpis.map((k, i) => <KpiCard key={i} {...k} />)}
         </div>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 36 }}>

@@ -32,6 +32,12 @@ const AGES = [
 type TrendItem = { month: string; count: number };
 type KategoriItem = { kategori: string; count: number };
 type EfekSampingItem = { nama_efek: string; count: number; kategori: string };
+type CardData = {
+  visits: number[];
+  months: string[];
+  complaints: { label: string; n: number }[];
+  effects: { drug: string; effect: string; n: number }[];
+};
 
 function LineChart({ data, labels }: { data: number[]; labels: string[] }) {
   const w = 560;
@@ -130,43 +136,82 @@ function BarChart({ data, color = "var(--teal)" }: { data: { label: string; n: n
   );
 }
 
+function ChartCard({
+  title,
+  caption,
+  loaded,
+  children,
+}: {
+  title: string;
+  caption: string;
+  loaded: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="glass" style={{ padding: 24, minHeight: 248 }}>
+      <div style={{ marginBottom: 16 }}>
+        <h3 className="serif" style={{ fontSize: "1.4rem" }}>
+          {title}
+        </h3>
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
+          {caption}
+        </span>
+      </div>
+      <div style={{ minHeight: 160 }}>
+        {loaded ? children : <div className="skel" style={{ width: "100%", height: 160 }} aria-hidden />}
+      </div>
+    </div>
+  );
+}
+
 export default function VisualizationPage() {
-  const [visits, setVisits] = useState<number[]>(FALLBACK_VISITS);
-  const [months, setMonths] = useState<string[]>(FALLBACK_MONTHS);
-  const [complaints, setComplaints] = useState(FALLBACK_COMPLAINTS);
-  const [effects, setEffects] = useState(FALLBACK_EFFECTS);
+  const [loaded, setLoaded] = useState(false);
+  const [data, setData] = useState<CardData>({
+    visits: FALLBACK_VISITS,
+    months: FALLBACK_MONTHS,
+    complaints: FALLBACK_COMPLAINTS,
+    effects: FALLBACK_EFFECTS,
+  });
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const next: CardData = {
+        visits: FALLBACK_VISITS,
+        months: FALLBACK_MONTHS,
+        complaints: FALLBACK_COMPLAINTS,
+        effects: FALLBACK_EFFECTS,
+      };
       try {
         const t = await api.get<TrendItem[]>("/api/visualizations/kunjungan-trend");
-        if (!cancelled && t && t.length > 0) {
-          setVisits(t.map((d) => d.count));
-          setMonths(t.map((d) => d.month));
+        if (t && t.length > 0) {
+          next.visits = t.map((d) => d.count);
+          next.months = t.map((d) => d.month);
         }
       } catch {}
       try {
         const c = await api.get<KategoriItem[]>("/api/visualizations/keluhan-distribution");
-        if (!cancelled && c && c.length > 0) {
-          setComplaints(c.slice(0, 6).map((d) => ({ label: d.kategori, n: d.count })));
+        if (c && c.length > 0) {
+          next.complaints = c.slice(0, 6).map((d) => ({ label: d.kategori, n: d.count }));
         }
       } catch {}
       try {
         const e = await api.get<EfekSampingItem[]>("/api/visualizations/top-efek-samping");
-        if (!cancelled && e && e.length > 0) {
-          setEffects(
-            e.slice(0, 5).map((d) => ({ drug: d.kategori, effect: d.nama_efek, n: d.count })),
-          );
+        if (e && e.length > 0) {
+          next.effects = e.slice(0, 5).map((d) => ({ drug: d.kategori, effect: d.nama_efek, n: d.count }));
         }
       } catch {}
+      if (!cancelled) {
+        setData(next);
+        setLoaded(true);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const totalVisits = visits.reduce((a, b) => a + b, 0);
+  const totalVisits = data.visits.reduce((a, b) => a + b, 0);
 
   return (
     <div
@@ -219,42 +264,26 @@ export default function VisualizationPage() {
             gap: 16,
           }}
         >
-          <div className="glass" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 className="serif" style={{ fontSize: "1.4rem" }}>
-                Tren kunjungan
-              </h3>
-              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                monthly · {totalVisits} total
-              </span>
-            </div>
-            <LineChart data={visits} labels={months} />
-          </div>
+          <ChartCard
+            title="Tren kunjungan"
+            caption={loaded ? `monthly · ${totalVisits} total` : "monthly · sinkronisasi"}
+            loaded={loaded}
+          >
+            <LineChart data={data.visits} labels={data.months} />
+          </ChartCard>
 
-          <div className="glass" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 className="serif" style={{ fontSize: "1.4rem" }}>
-                Top keluhan
-              </h3>
-              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                peringkat · 6 teratas
-              </span>
-            </div>
-            <BarChart data={complaints} />
-          </div>
+          <ChartCard title="Top keluhan" caption="peringkat · 6 teratas" loaded={loaded}>
+            <BarChart data={data.complaints} />
+          </ChartCard>
 
-          <div className="glass" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 className="serif" style={{ fontSize: "1.4rem" }}>
-                Efek samping terlapor
-              </h3>
-              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                obat · efek · jumlah
-              </span>
-            </div>
+          <ChartCard
+            title="Efek samping terlapor"
+            caption="obat · efek · jumlah"
+            loaded={loaded}
+          >
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {effects.map((e, i) => {
-                const max = Math.max(...effects.map((x) => x.n));
+              {data.effects.map((e, i) => {
+                const max = Math.max(...data.effects.map((x) => x.n));
                 const pct = (e.n / max) * 100;
                 return (
                   <div key={i} style={{ position: "relative" }}>
@@ -289,19 +318,15 @@ export default function VisualizationPage() {
                 );
               })}
             </div>
-          </div>
+          </ChartCard>
 
-          <div className="glass" style={{ padding: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 className="serif" style={{ fontSize: "1.4rem" }}>
-                Segmentasi usia
-              </h3>
-              <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                distribusi pasien
-              </span>
-            </div>
+          <ChartCard
+            title="Segmentasi usia"
+            caption="distribusi pasien"
+            loaded={loaded}
+          >
             <BarChart data={AGES} color="var(--ink)" />
-          </div>
+          </ChartCard>
         </div>
       </div>
     </div>

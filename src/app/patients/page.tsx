@@ -113,6 +113,7 @@ function SoapBlock({
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -125,6 +126,8 @@ export default function PatientsPage() {
         if (!cancelled) setPatients(data || []);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Gagal memuat pasien");
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -184,7 +187,7 @@ export default function PatientsPage() {
             textTransform: "uppercase",
           }}
         >
-          Rekam medis SOAP · {patients.length} pasien aktif
+          Rekam medis SOAP · {loaded ? patients.length : "..."} pasien aktif
         </span>
         <h1
           className="serif"
@@ -244,18 +247,23 @@ export default function PatientsPage() {
             gap: 16,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 360 }}>
             {loadError && (
               <div className="glass" style={{ padding: 18, fontSize: 13, color: "var(--crit-deep)" }}>
                 {loadError}
               </div>
             )}
-            {!loadError && filtered.length === 0 && patients.length === 0 && (
+            {!loaded && !loadError && (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="skel" style={{ height: 64, borderRadius: 14 }} aria-hidden />
+              ))
+            )}
+            {loaded && !loadError && patients.length === 0 && (
               <div className="glass" style={{ padding: 18, fontSize: 13, color: "var(--ink-3)" }}>
-                Memuat daftar pasien…
+                Belum ada pasien terdaftar.
               </div>
             )}
-            {filtered.map((p) => {
+            {loaded && filtered.map((p) => {
               const isSel = selected?.id === p.id;
               const gender = inferGender(p.nama);
               const condition = p.kategori || p.A?.diagnosa || "";

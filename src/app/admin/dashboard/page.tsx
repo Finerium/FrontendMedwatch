@@ -15,6 +15,7 @@ type StatRow = { label: string; n: string; d: string };
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<SystemStats | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +25,8 @@ export default function AdminDashboardPage() {
         if (!cancelled) setStats(data);
       } catch {
         if (!cancelled) setStats(null);
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -31,32 +34,28 @@ export default function AdminDashboardPage() {
     };
   }, []);
 
-  const rows: StatRow[] = [
-    {
-      label: "Pengguna aktif",
-      n: stats ? stats.users_count.toLocaleString("id-ID") : "1247",
-      d: stats
-        ? `${stats.users_by_role.tenaga_kesehatan} bidan · ${stats.users_by_role.masyarakat} masyarakat`
-        : "+34 bulan ini",
-    },
-    {
-      label: "Pasien terdaftar",
-      n: stats ? stats.patients_count.toLocaleString("id-ID") : "38",
-      d: "rekam medis SOAP",
-    },
-    {
-      label: "Obat di katalog",
-      n: stats ? stats.drugs_count.toLocaleString("id-ID") : "89",
-      d: stats?.last_scrape?.drugs_updated
-        ? `update terakhir ${stats.last_scrape.drugs_updated}`
-        : "7 berjalan",
-    },
-    {
-      label: "Uptime API",
-      n: "99.94%",
-      d: "30 hari",
-    },
-  ];
+  const rows: StatRow[] | null = stats
+    ? [
+        {
+          label: "Pengguna aktif",
+          n: stats.users_count.toLocaleString("id-ID"),
+          d: `${stats.users_by_role.tenaga_kesehatan} bidan · ${stats.users_by_role.masyarakat} masyarakat`,
+        },
+        {
+          label: "Pasien terdaftar",
+          n: stats.patients_count.toLocaleString("id-ID"),
+          d: "rekam medis SOAP",
+        },
+        {
+          label: "Obat di katalog",
+          n: stats.drugs_count.toLocaleString("id-ID"),
+          d: stats.last_scrape?.drugs_updated
+            ? `update terakhir ${stats.last_scrape.drugs_updated}`
+            : "katalog BPOM",
+        },
+        { label: "Uptime API", n: "99.94%", d: "30 hari" },
+      ]
+    : null;
 
   const auditLog = [
     { t: "14:32", who: "bidan_siti", act: "Login dari IP 103.8.xx.xx" },
@@ -114,27 +113,36 @@ export default function AdminDashboardPage() {
             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 16,
             marginBottom: 24,
+            minHeight: 152,
           }}
         >
-          {rows.map((s, i) => (
-            <div key={i} className="glass lift" style={{ padding: 22 }}>
-              <span
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-3)",
-                }}
-              >
-                {s.label}
-              </span>
-              <div className="serif" style={{ fontSize: "2.4rem", fontWeight: 300, marginTop: 8 }}>
-                {s.n}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>{s.d}</div>
-            </div>
-          ))}
+          {!loaded || !rows
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="glass" style={{ padding: 22 }}>
+                  <div className="skel" style={{ height: 12, width: 100, borderRadius: 4 }} aria-hidden />
+                  <div className="skel" style={{ height: 36, width: 120, borderRadius: 6, marginTop: 14 }} aria-hidden />
+                  <div className="skel" style={{ height: 12, width: 140, borderRadius: 4, marginTop: 10 }} aria-hidden />
+                </div>
+              ))
+            : rows.map((s, i) => (
+                <div key={i} className="glass lift" style={{ padding: 22 }}>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-3)",
+                    }}
+                  >
+                    {s.label}
+                  </span>
+                  <div className="serif" style={{ fontSize: "2.4rem", fontWeight: 300, marginTop: 8 }}>
+                    {s.n}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>{s.d}</div>
+                </div>
+              ))}
         </div>
         <div className="glass" style={{ padding: 24 }}>
           <h3 className="serif" style={{ fontSize: "1.4rem", marginBottom: 14 }}>

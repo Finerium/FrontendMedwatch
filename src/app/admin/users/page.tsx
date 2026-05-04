@@ -14,6 +14,7 @@ type AdminUser = {
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +25,8 @@ export default function AdminUsersPage() {
         if (!cancelled) setUsers(data || []);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Gagal memuat pengguna");
+      } finally {
+        if (!cancelled) setLoaded(true);
       }
     })();
     return () => {
@@ -73,16 +76,26 @@ export default function AdminUsersPage() {
         >
           Pengguna <em style={{ fontStyle: "italic" }}>terdaftar</em>.
         </h1>
-        <div className="glass" style={{ padding: 8 }}>
+        <div className="glass" style={{ padding: 8, minHeight: 380 }}>
           {loadError && (
             <div style={{ padding: 16, fontSize: 13, color: "var(--crit-deep)" }}>{loadError}</div>
           )}
-          {!loadError && users.length === 0 && (
+          {!loaded && !loadError && (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div
+                key={i}
+                className="skel"
+                style={{ height: 64, borderRadius: 12, margin: 4 }}
+                aria-hidden
+              />
+            ))
+          )}
+          {loaded && !loadError && users.length === 0 && (
             <div style={{ padding: 16, fontSize: 13, color: "var(--ink-3)" }}>
-              Memuat daftar pengguna…
+              Belum ada pengguna terdaftar.
             </div>
           )}
-          {users.map((u) => {
+          {loaded && users.map((u) => {
             const status = u.status || "active";
             return (
               <div
