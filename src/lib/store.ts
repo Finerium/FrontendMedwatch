@@ -1,65 +1,63 @@
+/**
+ * Patient store backed by backend API. Replaces the previous localStorage Zustand store.
+ * The Patient type now mirrors backend SOAP schema (api/storage canonical shape).
+ */
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { patients as seedPatients } from "@/data/patients";
+import { api } from "@/lib/api";
+import type { Patient, PatientSummary } from "@/lib/patient-format";
 
-export type Patient = {
-  id: string;
-  name: string;
-  age: number;
-  gender: "Perempuan" | "Laki-laki";
-  address: string;
-  phone?: string;
-  complaint: string;
-  vitalSigns?: string;
-  diagnosis: string;
-  prescribedDrugs: string[];
-  visitDate: string;
-  createdAt: string;
-  updatedAt: string;
-};
+export type { Patient, PatientSummary } from "@/lib/patient-format";
 
 type PatientStore = {
-  patients: Patient[];
-  addPatient: (data: Omit<Patient, "id" | "createdAt" | "updatedAt">) => Patient;
-  updatePatient: (id: string, updates: Partial<Patient>) => void;
-  deletePatient: (id: string) => void;
-  getPatientById: (id: string) => Patient | undefined;
-  resetToSeed: () => void;
+  patients: PatientSummary[];
+  loading: boolean;
+  error: string | null;
+  fetched: boolean;
+  refresh: () => Promise<void>;
+  add: (data: Omit<Patient, "id">) => Promise<Patient>;
+  update: (id: string, updates: Partial<Patient>) => Promise<Patient>;
+  remove: (id: string) => Promise<void>;
+  fetchOne: (id: string) => Promise<Patient | null>;
 };
 
-export const usePatientStore = create<PatientStore>()(
-  persist(
-    (set, get) => ({
-      patients: seedPatients,
+export const usePatientStore = create<PatientStore>((set, get) => ({
+  patients: [],
+  loading: false,
+  error: null,
+  fetched: false,
 
-      addPatient: (data) => {
-        const id = `PAT-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-        const now = new Date().toISOString();
-        const newPatient: Patient = { ...data, id, createdAt: now, updatedAt: now };
-        set((state) => ({ patients: [newPatient, ...state.patients] }));
-        return newPatient;
-      },
-
-      updatePatient: (id, updates) => {
-        set((state) => ({
-          patients: state.patients.map((p) =>
-            p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
-          ),
-        }));
-      },
-
-      deletePatient: (id) => {
-        set((state) => ({ patients: state.patients.filter((p) => p.id !== id) }));
-      },
-
-      getPatientById: (id) => get().patients.find((p) => p.id === id),
-
-      resetToSeed: () => set({ patients: seedPatients }),
-    }),
-    {
-      name: "medwatch-patients-v1",
-      storage: createJSONStorage(() => localStorage),
-      skipHydration: true,
+  refresh: async () => {
+    set({ loading: true, error: null });
+    try {
+      const list = await api.get<PatientSummary[]>("/api/patients");
+      set({ patients: list, loading: false, fetched: true });
+    } catch (e) {
+      set({ loading: false, error: String(e), fetched: true });
     }
-  )
-);
+  },
+
+  add: async (data) => {
+    const created = await api.post<Patient>("/api/patients", data);
+    await get().refresh();
+    return created;
+  },
+
+  update: async (id, updates) => {
+    const updated = await api.put<Patient>(`/api/patients/${id}`, updates);
+    await get().refresh();
+    return updated;
+  },
+
+  remove: async (id) => {
+    await api.delete<void>(`/api/patients/${id}`);
+    await get().refresh();
+  },
+
+  fetchOne: async (id) => {
+    try {
+      return await api.get<Patient>(`/api/patients/${id}`);
+    } catch {
+      return null;
+    }
+  },
+}));

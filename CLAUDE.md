@@ -1,261 +1,299 @@
-# CLAUDE.md - MedWatch Premium Frontend
+# MedWatch Project Memory
 
-## Project Overview
+This file is auto-loaded by Claude Code at session start. It contains permanent project context, immutable rules, and source-of-truth pointers. Read this carefully before any task.
 
-MedWatch is a Drug Safety Monitoring & Midwife Clinic Management system. This repository is the **premium showcase frontend** -- a fully interactive, glassmorphism-styled web application built to demonstrate MedWatch's capabilities with maximum visual impact. This is NOT a production backend app. All data is dummy/mock. The goal is: make it look and feel as beautiful, polished, and impressive as possible.
+---
 
-## Tech Stack
+## Project Identity
 
-- **Framework**: Next.js 15 (App Router, TypeScript)
-- **Styling**: Tailwind CSS v4 + custom glassmorphism utilities
-- **Components**: shadcn/ui (Radix primitives)
-- **Animations**: Framer Motion (page transitions, micro-interactions, scroll reveals)
-- **Charts**: Recharts (bar, line, pie, area, sparkline)
-- **Map**: react-simple-maps + d3-geo + Indonesia province TopoJSON
-- **Network Graph**: react-force-graph-2d (drug interaction visualization)
-- **3D**: @react-three/fiber + @react-three/drei (molecule viewer)
-- **Command Palette**: cmdk
-- **Theme**: next-themes (dark + light mode)
-- **Deployment**: Vercel
+**Name:** MedWatch: Sistem Monitoring Keamanan Obat & Manajemen Klinik Faskes 1
+**Mata kuliah:** Proyek 1 Pengembangan Perangkat Lunak Desktop
+**Institution:** Politeknik Negeri Bandung (POLBAN), D4 Teknik Informatika, Kelas 1B-D4
+**Term:** Semester 2: Tahun Akademik 2025/2026
+**Team designation:** Kelompok B5
 
-## Design Direction
+### Dosen pendamping
+- Aprianti Nanda Sari (Project Manager)
+- Ade Chandra Nugraha
+- Ardhian Ekawijana
 
-### Glassmorphism / Apple-inspired
+### Team roster
+| Nama | NIM | Role | Modul Python | GitHub |
+|---|---|---|---|---|
+| Ghaisan Khoirul Badruzaman | 251524048 | Project Leader / Team Coordinator | anggota1 (scraping drugs.com + FDA) | Finerium |
+| Bimo Surya Anggara | 251524040 | Quality Assurance | anggota2 (CRUD pasien SOAP) | Bisura16 |
+| Alia Ardani | 251524035 | System Analyst | anggota3 (visualisasi matplotlib) | vssixla |
+| Muhammad Iqbal | 251524057 | Programmer | anggota4 (drug safety check) | BallVoldigoad |
+| Abhidal Muhammad Gazza | 251524032 | UI/UX Designer | anggota5 (PDF export fpdf) | Heimdall |
 
-The entire UI follows a premium glassmorphism aesthetic:
+You are working on behalf of **Ghaisan Khoirul Badruzaman** (the Project Leader). Address him as "Ghaisan" or "lu" in casual register if responding in Indonesian.
 
-**Dark Mode (primary)**:
-- Background: deep dark (#0a0a0f to #0f0f1a gradient)
-- Ambient gradient blobs: floating orbs of color behind the UI (purple #7c3aed, blue #3b82f6, teal #06b6d4, pink #ec4899) with large blur radius
-- Glass cards: bg-white/[0.05], backdrop-blur-xl, border border-white/[0.08], shadow-[0_8px_32px_0_rgba(0,0,0,0.36)], rounded-2xl
-- Text: primary white #f8fafc, secondary #94a3b8
-- Accent: blue-500 #3b82f6 primary, purple-500 #8b5cf6 secondary
+---
 
-**Light Mode**:
-- Background: soft warm white (#fafaf9 to #f5f5f4 gradient)
-- Ambient gradient blobs: soft pastels (lavender, sky blue, rose) with lower opacity
-- Glass cards: bg-white/70, backdrop-blur-xl, border border-gray-200/50, shadow-lg, rounded-2xl
-- Text: primary slate-900, secondary slate-500
-- Accent: same blue-500 and purple-500
+## Repository Registry
 
-### Critical Glass Rules
-1. NEVER use solid opaque backgrounds on cards. Always translucent with backdrop-blur
-2. ALWAYS have ambient gradient blobs behind the main content area. Without them the glass is invisible
-3. Border on glass elements must be semi-transparent white (dark) or semi-transparent gray (light)
-4. Shadows should be large and soft, not sharp
-5. Rounded corners: minimum rounded-xl, prefer rounded-2xl
+| Repo | URL | Owner | Purpose | Integration branch |
+|---|---|---|---|---|
+| Backend (THE main project) | `https://github.com/Bisura16/medWatch` | Bimo (Bisura16) | Modular Python anggota1-5 modules. Integration layer `api/` is added by Ghaisan in his branch. | `ghaisan-APIIntegration` |
+| Frontend (Vercel showcase) | `https://github.com/Finerium/FrontendMedwatch` | Ghaisan (Finerium) | Next.js 15 + TypeScript + Tailwind v4 glassmorphism, deployed to Vercel | `ghaisan-APIIntegration` |
 
-### Typography
-- Font: Inter (from Google Fonts or next/font)
-- Headings: font-semibold or font-bold, tracking-tight
-- Body: font-normal, text-sm or text-base
-- Numbers/stats: font-mono for tabular data, font-bold for KPI numbers
+### Reference-only repositories (DO NOT modify)
+- `https://github.com/ball-droid/MedwatchProto`: Iqbal's CustomTkinter monolithic prototype, not merged
+- `https://github.com/Bisura16/Proyek_Kelompok5_W3`: Week 3 weekly assignment (news scraper), unrelated
+- `https://github.com/Finerium/Proyek_Kelompok5`: original team landing page
 
-### Spacing & Layout
-- Sidebar: fixed left, 280px wide, glass background, collapsible
-- Content area: p-6 or p-8, max-w-7xl
-- Card gaps: gap-6
-- Section gaps: space-y-8
+### Live URLs
+- Frontend: `https://medwatch-frontend.vercel.app` (Vercel, owned by Ghaisan)
+- Backend: deployed to Cloud Run at `https://medwatch-api-XXXXX-as.a.run.app` after Phase 4 of integration mission
 
-## Application Pages (12 total)
+---
 
-### Core Pages (from original MedWatch)
-1. **Dashboard** (`/`) -- KPI cards with animated counters (count-up on mount), sparkline mini-charts, activity feed with timestamps, quick stats grid
-2. **Drug Search** (`/drug-search`) -- search bar with autocomplete dropdown, drug detail card (info, side effects table, top-10 bar chart)
-3. **Drug Comparison** (`/drug-comparison`) -- 2-3 drug selector dropdowns, grouped bar chart, comparison summary table
-4. **Patient Table** (`/patients`) -- data table with sort, filter, search, pagination, status badges
-5. **Patient Form** (`/patients/new`) -- add/edit form with field validation, inline error messages
-6. **Visualization** (`/visualization`) -- visit trend line chart + complaint distribution pie chart, date range filter
-7. **Safety Checker** (`/safety-checker`) -- drug input, color-coded alert cards (red=danger, yellow=warning, green=safe), animated transitions between states
-8. **Export PDF** (`/export`) -- report type selector, date range picker, checkboxes for options, mock preview area, generate button
+## Immutable Rules
 
-### New Premium Pages
-9. **Indonesia Map** (`/indonesia-map`) -- interactive choropleth map of 34 provinces, hover tooltip (province name, clinic count, patient count), click to zoom, color intensity by patient density, legend
-10. **Drug Interaction Network** (`/drug-network`) -- force-directed graph with drug nodes, colored by category, edges = known interactions, drag nodes, zoom/pan, click node for detail popup
-11. **3D Molecule Viewer** (`/molecule-viewer`) -- Three.js ball-and-stick model, orbit controls (rotate/zoom), molecule selector dropdown, atom labels on hover, ambient lighting
-12. **Side Effect Heatmap** (`/heatmap`) -- matrix grid (drugs x side effects), color intensity = frequency, hover for exact numbers, sortable axes
+These rules are non-negotiable. Failure to follow any of them is a critical defect that requires rollback.
 
-## Sidebar Navigation
+### 1. Git authorship
 
-Menu items in order:
-1. Dashboard (icon: LayoutDashboard)
-2. Drug Search (icon: Search)
-3. Drug Comparison (icon: GitCompare)
-4. Patients (icon: Users)
-5. Visualization (icon: BarChart3)
-6. Safety Checker (icon: ShieldCheck)
-7. Indonesia Map (icon: Map)
-8. Drug Network (icon: Network)
-9. Molecule Viewer (icon: Atom)
-10. Heatmap (icon: Grid3x3)
-11. Export PDF (icon: FileDown)
+- **Git author for all commits:** `Ghaisan Khoirul Badruzaman <ghaisan.khoirul.b@gmail.com>`
+- Before committing, verify `git config user.name` returns `Ghaisan Khoirul Badruzaman` and `git config user.email` returns `ghaisan.khoirul.b@gmail.com`. Set them if missing or wrong.
+- **NEVER include any of the following in commit messages, file headers, or anywhere else:**
+  - `Co-authored-by: Claude` or any Claude attribution
+  - `"Generated with Claude Code" robot emoji marker` emblem
+  - "Generated with Claude", "via Claude", "with assistance from Claude"
+  - Any emoji robot or AI marker
+- Commit messages use **conventional commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:`, `perf:`) in clear English. Indonesian is acceptable too but English is preferred for consistency with industry convention.
+- Commit messages explain **what changed and why**, never **how**.
+- Squash trivial commits before push (no `wip`, `asdf`, `temp` left behind).
 
-Bottom of sidebar:
-- Theme toggle (Sun/Moon icon with smooth transition)
-- Collapse/expand button
+### 2. Modul anggota1-5 are READ-ONLY (with one explicit, one-time exception)
 
-Icons: use lucide-react
+- Files inside `anggota1/`, `anggota2/`, `anggota3/`, `anggota4/`, `anggota5/` belong to Ghaisan's teammates. **Never modify them**, with one explicit exception described below.
+- If integration with a teammate's module requires a fix (e.g. broken import path, missing dependency), do NOT fix in their file. Instead, write a wrapper or shim in `api/` that handles the issue gracefully.
+- Reading and importing teammates' modules is fine. Writing is forbidden.
+- Existing JSON data files (`anggota4/data/drug_database.json`, `anggota4/data/effect_database.json`, `anggota5/data/Pasien.json`) are also read-only. The new `api/` layer maintains its own copies in `api/data/`.
 
-## Global Features
+**One-time exception (Phase 1 only): Abhidal-authorized anggota5 auth revision.** Abhidal Muhammad Gazza has formally requested via Ghaisan to implement two revisions to his anggota5 module: removing the open-signup feature, and implementing role-based CRUD access (admin can manage tenaga kesehatan accounts and trigger scraper; tenaga kesehatan can only access patient CRUD). The Phase 1 sub-phase in the master prompt implements this revision by modifying exactly four files in `anggota5/`:
 
-### Command Palette (Cmd+K / Ctrl+K)
-- Opens modal with search input
-- Searches across all pages, drugs, patients
-- Keyboard navigable
-- Use cmdk library + shadcn Command component
+- `anggota5/data/users.json` (replace with new schema)
+- `anggota5/auth.py` (replace with role-aware version)
+- `anggota5/tkesehatan_crud.py` (NEW file)
+- `anggota5/main_anggota5.py` (replace with role-based menu)
 
-### Page Transitions
-- Use Framer Motion AnimatePresence
-- Fade + slight upward slide on page enter (opacity 0 -> 1, y 20 -> 0)
-- Duration: 300ms, ease-out
+No other anggota5 file (e.g. `export_pdf.py`, `ambil_data.py`) may be touched.
 
-### Toast Notifications
-- Use shadcn Sonner or Toast
-- Appear bottom-right
-- Auto-dismiss after 3s
-- Animated entrance/exit
+**Workflow:** team `Bisura16/medWatch` follows a per-anggota branch + PR pattern. The Abhidal revision is committed to the existing `Abhidal_anggota5` branch (not directly to main), pushed, then opened as a PR `Abhidal_anggota5 -> main` and self-merged via `gh pr merge --squash` by Ghaisan with Abhidal's authorization. The PR body documents the spec and authorship.
 
-### Skeleton Loading
-- Every page should show skeleton loaders for 800ms on first render (simulated)
-- Use shadcn Skeleton component
-- Match the shape of actual content
+After the squash-merge to main is confirmed, anggota5 returns to read-only status. This exception does NOT extend to anggota1, anggota2, anggota3, or anggota4 under any circumstances.
 
-### Scroll Animations
-- Cards and sections fade in + slide up when scrolling into view
-- Use Framer Motion whileInView
-- viewport={{ once: true }}
-- Stagger children by 100ms
+### 3. Schema source of truth
 
-### Animated Counters
-- KPI numbers on Dashboard count up from 0 to target value
-- Duration: 1.5s with ease-out
-- Trigger on mount / on scroll into view
+When data formats conflict between modules, the canonical schema is:
 
-## Mock Data
+| Entity | Source of truth | Notable conventions |
+|---|---|---|
+| Pasien | `anggota2/pasien_helper.py` (Bimo's format) | ID auto-generated as `P001`, `P002`, ... (uppercase P + 3 digits). NOT `PSN-001` (Abhidal's draft is non-canonical). |
+| Drug | `anggota4/data/drug_database.json` (Iqbal's format) | Fields: `nama_obat, alias[], kategori, bahan_aktif[], indikasi[], dosis_umum, kehamilan, peringatan[], kontraindikasi[], interaksi[], efek_samping[]` |
+| Side effect | `anggota4/data/effect_database.json` (Iqbal's format) | Fields: `nama_efek, kategori, tingkat_keparahan (ringan/sedang/serius), rekomendasi`. Severity scoring: ringan=1, sedang=2, serius=4. |
+| Visit/SOAP | `anggota2/Pasien.json` (Bimo's format) | Format: `id, tanggal_kunjungan (DD-MM-YYYY), nama, umur, alamat, kategori, S{keluhan, riwayat}, O{tekanan_darah, nadi, suhu_c, respirasi, bb_kg, tb_cm, lila_cm, catatan}, A{diagnosa}, P{tindakan, resep, jadwal_kontrol}` |
+| User auth | `api/data/users.json` (NEW, replaces `anggota5/data/users.json`) | Schema: `{username, password_hash (bcrypt), role, name, phone}`. Roles: `tenaga_kesehatan`, `masyarakat`, `admin`. |
 
-All mock data is defined in `docs/MOCK_DATA.md`. Read that file for the complete data structures. Key data files to create:
-- `src/data/drugs.ts` -- drug database (20+ drugs)
-- `src/data/patients.ts` -- patient records (50+ entries)
-- `src/data/interactions.ts` -- drug interaction network (nodes + edges)
-- `src/data/indonesia-map.ts` -- province data (34 provinces, clinic/patient counts)
-- `src/data/molecules.ts` -- molecule atom/bond definitions (3-5 molecules)
-- `src/data/heatmap.ts` -- side effect frequency matrix
-- `src/data/activity.ts` -- recent activity feed entries
+#### Bidan workflow reality (Pasien input/display)
 
-## File Structure
+The structured SOAP schema above is for **storage and validation**. The UX must respect that bidan in Faskes 1 do not always fill every field. Reference example provided by Ghaisan:
 
 ```
-src/
-├── app/
-│   ├── layout.tsx              <- root layout, providers, sidebar
-│   ├── page.tsx                <- Dashboard
-│   ├── drug-search/page.tsx
-│   ├── drug-comparison/page.tsx
-│   ├── patients/
-│   │   ├── page.tsx            <- patient table
-│   │   └── new/page.tsx        <- patient form
-│   ├── visualization/page.tsx
-│   ├── safety-checker/page.tsx
-│   ├── indonesia-map/page.tsx
-│   ├── drug-network/page.tsx
-│   ├── molecule-viewer/page.tsx
-│   ├── heatmap/page.tsx
-│   └── export/page.tsx
-├── components/
-│   ├── ui/                     <- shadcn components
-│   ├── layout/
-│   │   ├── Sidebar.tsx
-│   │   ├── TopBar.tsx
-│   │   ├── AmbientBackground.tsx  <- gradient orbs
-│   │   └── PageTransition.tsx
-│   ├── dashboard/
-│   ├── drugs/
-│   ├── patients/
-│   ├── charts/
-│   ├── map/
-│   ├── network/
-│   ├── molecule/
-│   └── shared/
-│       ├── CommandPalette.tsx
-│       ├── AnimatedCounter.tsx
-│       ├── SkeletonLoader.tsx
-│       └── GlassCard.tsx
-├── data/                       <- mock data files
-├── hooks/                      <- custom hooks
-├── lib/
-│   └── utils.ts
-└── styles/
-    └── globals.css             <- Tailwind imports, glass utilities, ambient gradients
+Tgl 28 Februari 2026
+Nama : Ny. Dewi
+Umur : 25 THN
+Alamat : Kp. Selang Cau
+S : mengeluh mual, muntah, pusing, telat mens 1 bln mens terakhir tgl 25 Januari 2026
+O : td. 110/70, BB 50 kg, tb 150, lingkar lengan 23 cm, tespek positif
+A : G1P0A0 hamil 5 mg
+P : Istirahat cukup
+    Makan sedikit tapi sering
+    Asam folat 1x1 sehari
 ```
 
-## Code Conventions
+Mapping rules:
+- Required fields: `nama`, `S.keluhan`, `A.diagnosa`, `P.tindakan`. All others optional.
+- `O.nadi`, `O.suhu_c`, `O.respirasi` commonly blank: bidan does not always measure these.
+- `O.catatan` is the catch-all for non-structured observations like "tespek positif", "DJJ 140 x/menit", etc.
+- `P.tindakan` is multi-line: newlines preserved in storage and rendered as bullet list.
+- Display reconstruction uses bidan abbreviations (`td.`, `BB`, `tb`, `lila`) not the raw JSON keys (`tekanan_darah`, etc.). See `composeO()` helper spec in master prompt Phase 6.
 
-### General
-- Use TypeScript strict mode
-- Prefer named exports
-- Use 'use client' only when needed (interactive components)
-- Server components by default
-- No `any` types
+### 4. Role nomenclature
 
-### Components
-- One component per file
-- Props interface defined above component
-- Destructure props in function signature
-- Use cn() utility from lib/utils for conditional classes
+Always use **`tenaga_kesehatan`** (not "dokter") and **`masyarakat`** (not "pasien" in technical contexts) for backend role values. UI labels can show "Dokter" or "Pasien" if more user-friendly, but API role string values are canonical. This aligns with PRD target user definitions and team convention from WhatsApp discussions.
 
-### Styling
-- Tailwind utility classes only, no custom CSS except globals.css
-- Define reusable glass classes as @apply utilities in globals.css
-- Color references: always use Tailwind palette (slate, blue, purple, etc.) not hex in components
-- Dark mode: use `dark:` variant prefix
+The third role is **`admin`**, used for the team member who manages the scraper trigger and user accounts. Admin is an extension beyond PRD original scope (PRD section 5.2 originally listed auth as out-of-scope), so its presence should be framed as a presentation supplement, not a core PRD feature.
 
-### Animations
-- Wrap page content in PageTransition component
-- Use motion.div for animated elements
-- Always respect prefers-reduced-motion
-- Keep animations subtle: max 300ms duration, small transforms (20px max translate)
+### 5. PRD scope tension awareness
 
-## MCP Servers Available
+The original `MedWatch_PRD.pdf` explicitly lists as **out of scope**:
+- "Fitur login atau multi-user dengan autentikasi"
+- "Deployment ke platform web atau mobile"
 
-Claude Code has these MCP servers installed globally:
-1. **Playwright** -- use for visual verification, screenshot pages after building
-2. **Context7** -- use for fetching latest docs of any library before writing code
-3. **shadcn/ui MCP** -- use for listing/installing shadcn components
+The integration mission adds both of these as **supplementary demo features**, not as replacements for the desktop CustomTkinter modules anggota1-5. The narrative for the lecturer is: "demo fitur, bukan demo aplikasi": the desktop modular CustomTkinter remains the primary submission, the Cloud Run + Vercel stack is a presentation polish layer that connects modul anggota1-5 to a web frontend showcase.
 
-## Workflow Per Session
+Do not propose modifying the PRD. Do not suggest expanding the auth feature beyond what the integration mission specifies.
+
+### 6. README files are append-only
+
+`Bisura16/medWatch/README.md` and `Finerium/FrontendMedwatch/README.md` contain content authored by teammates (Bimo) or Ghaisan himself. **Never delete or rewrite existing README content.** Only **append** new sections at the end, separated by a horizontal rule (`---`). This applies even if existing content is sparse, outdated, or imperfect: it is teammate property.
+
+NEW README files (e.g. `medWatch/api/README.md`) can be authored freely.
+
+### 7. Cyber security responsibility
+
+Every code path that handles authenticated requests, PII (patient data), or secrets is subject to a security review pass at the end of the integration mission. The standard is OWASP Top 10 plus GCP-specific checks. Apply defense-in-depth: middleware on backend AND middleware on frontend AND CORS allowlist. Never log passwords. Never return password hashes. Never commit secrets to git.
+
+The audit produces `medWatch/docs/SECURITY_AUDIT.md`. Critical findings block push.
+
+### 8. All resources must be free
+
+- GCP free trial credit ($300, attached to Ghaisan's billing account at `ghaisan.khoirul.b@gmail.com`) is the budget. No paid services beyond what fits in free trial.
+- No paid third-party services (no Auth0, no SendGrid, no paid Cloudflare, no Sentry paid tier).
+- No custom domains. Default `.run.app` and `.vercel.app` URLs are sufficient.
+- Vercel free tier hosting only. Stay within Hobby plan limits.
+
+### 9. Zero user interaction during execution
+
+- Ghaisan launches Claude Code with `claude --dangerously-skip-permissions` and expects autonomous completion.
+- Do **not** ask clarifying questions during execution. Every decision is locked in this CLAUDE.md and the master prompt.
+- If a hard error blocks progress, log the error to `~/Documents/MedWatchIntegration/EXECUTION_LOG.md`, attempt the next phase, and surface the error in the final report.
+
+---
+
+## Tooling Stack
+
+### Backend (`api/` layer in Bisura16/medWatch)
+- Python 3.11 (Cloud Run runtime)
+- Flask 3.0+ for HTTP server
+- Flask-CORS for cross-origin (although requests proxy through Vercel, keep CORS for direct testing)
+- PyJWT for JWT issuance/verification
+- bcrypt for password hashing
+- google-cloud-storage for persistent state backup
+- requests + beautifulsoup4 (already used by anggota1, do not re-import)
+- matplotlib (already used by anggota3, return charts as base64 PNG when needed for PDF)
+- fpdf2 (already used by anggota5)
+- gunicorn for production WSGI
+
+### Backend deployment
+- GCP project: `medwatch-polban-2026` (created during Phase 4)
+- Region: `asia-southeast1`
+- Service: `medwatch-api` (Cloud Run)
+- Container: built via Cloud Build from `api/Dockerfile`
+- Storage: `medwatch-polban-2026-state` bucket for `users.json` and `patients.json` persistence
+- Secrets: JWT signing key in Secret Manager as `medwatch-jwt-secret`
+
+### Frontend (Finerium/FrontendMedwatch)
+- Next.js 15 (App Router)
+- TypeScript strict mode
+- Tailwind CSS v4
+- shadcn/ui components
+- Framer Motion for animations
+- Recharts for data viz
+- Zustand for client state (auth, etc.)
+- next-themes for dark/light
+- Vercel deployment (already configured)
+
+### Frontend <-> Backend correlation pattern
+
+**Vercel API routes proxy** (security pattern B). The browser only ever sees Vercel domain. The backend Cloud Run URL is stored in Vercel environment variable `BACKEND_API_URL` (server-side only, **not** prefixed with `NEXT_PUBLIC_`). Next.js API routes at `app/api/[...slug]/route.ts` forward requests to the backend with proper auth headers, attach the JWT from httpOnly cookie, return the response. Browser-side code calls `/api/...` paths only.
+
+This means:
+- JWT lives in httpOnly cookies (XSS-resistant)
+- Backend URL is never exposed to client
+- Backend can be swapped via Vercel env var update without frontend code change
+- Same-origin requests, no CORS preflight overhead per call
+
+---
+
+## Working Directory Convention
+
+When the master prompt is launched, Claude Code creates a parent integration workspace:
 
 ```
-1. Read this CLAUDE.md
-2. Read docs/DESIGN_SYSTEM.md for visual specs
-3. Read docs/MOCK_DATA.md for data structures
-4. Read the session prompt (pasted in chat)
-5. Use Context7 to fetch latest docs for libraries being used
-6. Use shadcn MCP to install needed components
-7. Ultrathink -> plan component architecture
-8. Spawn sub-agents for parallel work
-9. Build components with glass styling
-10. Use Playwright to screenshot and verify
-11. Fix issues, re-screenshot until perfect
+~/Documents/MedWatchIntegration/
+├── medWatch/                 # cloned from Bisura16/medWatch (backend)
+├── FrontendMedwatch/         # cloned from Finerium/FrontendMedwatch (frontend)
+├── EXECUTION_LOG.md          # error/decision log
+├── PROGRESS.md               # phase-by-phase status
+└── DESIGN.md                 # extracted from master prompt for reference
 ```
 
-## Quality Checklist (Before Completing Any Session)
+This `CLAUDE.md` file is placed at the **root of each repository** (`medWatch/CLAUDE.md` and `FrontendMedwatch/CLAUDE.md`) so that future Claude Code sessions in either repo automatically load it. Both copies are identical.
 
-- [ ] All glass cards have backdrop-blur + translucent bg + border
-- [ ] Ambient gradient blobs visible behind content
-- [ ] Dark mode and light mode both work correctly
-- [ ] Page transitions animate on navigation
-- [ ] No TypeScript errors
-- [ ] No hardcoded colors outside of design tokens
-- [ ] Interactive elements have hover/focus states
-- [ ] Data renders from mock data files (not inline strings)
-- [ ] Responsive: looks good at 1440px and 768px minimum
-- [ ] Playwright screenshots taken and verified
+If Ghaisan already has the frontend cloned at `~/Documents/FrontendMedWatch/` (note slightly different casing), Claude Code uses that location instead of re-cloning. The integration parent dir is created freshly for the backend.
 
-## Important Notes
+---
 
-- This is a SHOWCASE project. Prioritize visual beauty over code architecture
-- All data is fake/dummy. No real backend, no API calls, no database
-- Every interaction should feel smooth and polished
-- When in doubt, add more visual polish (gradient borders, glow effects, subtle animations)
-- The existing code1.html through code8.html in the project root are layout references from the original mockup. Use them as structural inspiration but the visual design must be completely elevated to premium glassmorphism level
-- Deploy target is Vercel (vercel.json not needed for standard Next.js)
+## Methodology Note
+
+Claude Code is configured with the **Superpowers plugin (obra/superpowers)** which auto-triggers structured skills (brainstorming, writing-plans, using-git-worktrees, subagent-driven-development, test-driven-development, requesting-code-review, finishing-a-development-branch).
+
+Behavior expected from these skills:
+- **brainstorming SKIPPED:** This integration mission represents an already-approved, fully-specified design. The master prompt is the brainstorm output. Skip the brainstorming skill and proceed directly to writing-plans.
+- **writing-plans:** Generate task breakdown per phase from the master prompt. Each task should be 2-5 minutes of work, with exact file paths and verification steps.
+- **using-git-worktrees:** Create separate worktrees per repo for parallel work where independent.
+- **subagent-driven-development:** Dispatch a fresh subagent per logical task with two-stage review.
+- **test-driven-development:** Apply lightly. For Flask endpoints, write smoke tests (curl-style verification scripts). Full unit-test TDD is overkill for this presentation-focused integration. Tests should verify "endpoint returns 200, response shape matches schema, auth blocks unauthorized."
+- **requesting-code-review:** Apply at end of each phase before commit. Self-review against acceptance criteria.
+- **finishing-a-development-branch:** Apply at end of mission. Push branches, do not auto-merge. Surface as draft PR to Ghaisan via final report.
+
+---
+
+## Coding Conventions
+
+### Python (`api/` layer)
+- PEP 8, 4-space indentation
+- Type hints on all public functions
+- Docstrings in English, brief (one-liner for trivial, multi-line with `Args:`/`Returns:` for non-trivial)
+- File comments at top: short module docstring stating purpose, no author tag, no date
+- Imports: standard lib, third-party, local: separated by blank line
+- f-strings for formatting, no `%` or `.format()`
+- Logging: use `logging` module configured at app startup, never `print()` in production paths
+
+### TypeScript (frontend)
+- Strict mode, no `any` without justification comment
+- Explicit return types on exported functions
+- React Server Components by default, `"use client"` only when needed (state, effects, browser APIs)
+- File naming: `kebab-case.tsx` for routes, `PascalCase.tsx` for components
+- Imports sorted: React, third-party, `@/` aliases, relative
+- No barrel files (`index.ts` re-exports) unless they exist already
+- Tailwind classes ordered: layout -> spacing -> typography -> color -> state
+
+### Both
+- No console.log / print in committed code (unless inside dev-only blocks)
+- No commented-out code blocks. Delete or document why preserved.
+- No TODO comments without an issue/ticket reference. Replace `TODO` with `NOTE:` or remove.
+- Variable names in English. UI strings in Indonesian where user-facing.
+
+---
+
+## Security Boundaries
+
+- JWT secret never committed to git. Stored in GCP Secret Manager, accessed via env var.
+- bcrypt cost factor: 12 (default). Faster cost is rejected.
+- httpOnly + Secure + SameSite=Lax cookies for JWT.
+- Cloud Run service account: minimal permissions (Storage Object Admin on the state bucket only, Secret Manager Secret Accessor on jwt secret only).
+- No service account key files committed to git. Use Workload Identity or default Cloud Run service account.
+- CORS allowlist: only the Vercel deployment URL plus localhost dev ports.
+- No `eval()`, no `exec()`, no shell injection vectors. Pasien data sanitized before SOAP rendering.
+
+---
+
+## When to Stop and Ask
+
+There are exactly two situations where you must stop autonomous execution and surface to Ghaisan instead of pushing through:
+
+1. A required GCP API quota or billing issue would lock the entire deployment phase. (E.g. free trial expired, billing account suspended.)
+2. The Bisura16/medWatch repo has been updated by a teammate in a way that conflicts with the `ghaisan-APIIntegration` branch base, and rebasing would touch teammate files (which is forbidden by Rule 2).
+
+Anything else: log it, work around it, surface in the final report. Do not block on user input.
+
+---
+
+## End
+
+This file is reference material. The mission to execute lives in the master prompt that the user pastes at session start.
