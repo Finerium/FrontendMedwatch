@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore, landingForRole, type Role } from "@/lib/auth-store";
 import { Stethoscope, User, ShieldCheck } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 type TabKey = "tenaga_kesehatan" | "masyarakat" | "admin";
 
@@ -38,6 +40,14 @@ const TABS: { key: TabKey; label: string; icon: typeof Stethoscope; demo: { user
 ];
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-slate-400">Memuat...</div>}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const fromPath = params.get("from") || "";
