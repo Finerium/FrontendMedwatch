@@ -1,143 +1,428 @@
 "use client";
 
-import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Search, Eye, Trash2, Loader2, Users } from "lucide-react";
-import { useHydratedPatientStore } from "@/lib/use-hydrated-store";
-import { formatTanggalLong } from "@/lib/patient-format";
-import { useAuthStore } from "@/lib/auth-store";
-import { toast } from "sonner";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "@/lib/api";
+import type { Patient, PatientObjective } from "@/lib/patient-format";
+import { NavIcon } from "@/components/shell/NavIcon";
+
+function inferGender(nama: string): "L" | "P" | "" {
+  const n = (nama || "").trim().toLowerCase();
+  if (n.startsWith("ny.") || n.startsWith("nona") || n.startsWith("ny ")) return "P";
+  if (n.startsWith("tn.") || n.startsWith("tn ")) return "L";
+  if (n.startsWith("an.") || n.startsWith("an ")) return "";
+  return "";
+}
+
+function objectiveFields(o: PatientObjective | undefined): [string, string][] {
+  if (!o) return [];
+  const out: [string, string][] = [];
+  if (o.tekanan_darah) out.push(["td.", o.tekanan_darah]);
+  if (o.bb_kg) out.push(["BB", o.bb_kg + " kg"]);
+  if (o.tb_cm) out.push(["tb", o.tb_cm + " cm"]);
+  if (o.lila_cm) out.push(["lila", o.lila_cm + " cm"]);
+  if (o.nadi) out.push(["nadi", o.nadi + " x/m"]);
+  if (o.suhu_c) out.push(["suhu", o.suhu_c + "°C"]);
+  if (o.respirasi) out.push(["resp.", o.respirasi + " x/m"]);
+  return out;
+}
+
+function SoapBlock({
+  letter,
+  title,
+  content,
+  fields,
+}: {
+  letter: string;
+  title: string;
+  content: string;
+  fields: [string, string][];
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "36px 1fr", gap: 14, alignItems: "flex-start" }}>
+      <span
+        className="serif"
+        style={{
+          fontSize: 28,
+          fontWeight: 400,
+          color: "var(--teal-deep)",
+          background: "var(--teal-soft)",
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {letter}
+      </span>
+      <div>
+        <span
+          className="mono"
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            color: "var(--ink-3)",
+            textTransform: "uppercase",
+          }}
+        >
+          {title}
+        </span>
+        {content && (
+          <p
+            style={{
+              marginTop: 6,
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: "var(--ink-2)",
+              whiteSpace: "pre-line",
+            }}
+          >
+            {content}
+          </p>
+        )}
+        {fields.length > 0 && (
+          <div
+            style={{
+              marginTop: 6,
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: 8,
+            }}
+          >
+            {fields.map(([k, v]) => (
+              <div key={k} style={{ padding: "8px 10px", background: "var(--bg-2)", borderRadius: 8 }}>
+                <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
+                  {k}
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!content && fields.length === 0 && (
+          <p style={{ marginTop: 6, fontSize: 13, color: "var(--ink-4)", fontStyle: "italic" }}>
+            — kosong —
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PatientsPage() {
-  const { patients, loading, error, hydrated, remove } = useHydratedPatientStore();
-  const role = useAuthStore((s) => s.user?.role);
-  const [search, setSearch] = useState("");
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<Patient[]>("/api/patients");
+        if (!cancelled) setPatients(data || []);
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Gagal memuat pasien");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
     if (!q) return patients;
     return patients.filter(
-      (p) =>
-        p.nama?.toLowerCase().includes(q) ||
-        p.id?.toLowerCase().includes(q) ||
-        p.kategori?.toLowerCase().includes(q),
+      (p) => p.nama.toLowerCase().includes(q) || p.id.toLowerCase().includes(q),
     );
-  }, [patients, search]);
+  }, [patients, query]);
 
-  const handleDelete = async (id: string, nama: string) => {
-    if (!confirm(`Yakin hapus pasien ${nama} (${id})?`)) return;
-    try {
-      await remove(id);
-      toast.success(`Pasien ${id} dihapus`);
-    } catch (e) {
-      toast.error(`Gagal hapus: ${e}`);
-    }
-  };
+  const selected = patients.find((p) => p.id === selectedId) || null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="w-6 h-6 text-purple-500" />
-            Data Pasien
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">{patients.length} pasien terdaftar</p>
-        </div>
-        <Link
-          href="/patients/new"
-          className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+    <div
+      className="page-in"
+      style={{ padding: "120px 24px 80px", position: "relative", maxWidth: 1440, margin: "0 auto" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 100,
+          right: -90,
+          width: 280,
+          height: 280,
+          borderRadius: "50%",
+          background: "var(--ink)",
+          opacity: 0.92,
+          zIndex: 0,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 200,
+          right: 80,
+          width: 90,
+          height: 90,
+          borderRadius: "50%",
+          background: "var(--teal)",
+          opacity: 0.85,
+          zIndex: 0,
+        }}
+      />
+
+      <div className="stagger" style={{ position: "relative", zIndex: 2 }}>
+        <span
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            color: "var(--ink-3)",
+            textTransform: "uppercase",
+          }}
         >
-          <Plus className="w-4 h-4" />
-          Tambah Pasien
-        </Link>
-      </div>
+          Rekam medis SOAP · {patients.length} pasien aktif
+        </span>
+        <h1
+          className="serif"
+          style={{
+            fontSize: "clamp(2.6rem, 5.5vw, 4.4rem)",
+            fontWeight: 300,
+            letterSpacing: "-0.03em",
+            marginTop: 8,
+            marginBottom: 28,
+          }}
+        >
+          Daftar <em style={{ fontStyle: "italic" }}>pasien</em>.
+        </h1>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari nama / ID / kategori..."
-          className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-purple-500"
-        />
-      </div>
-
-      {loading && !hydrated && (
-        <div className="flex items-center justify-center py-12 text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Memuat data pasien...
+        <div
+          className="glass"
+          style={{
+            padding: 14,
+            marginBottom: 18,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cari berdasar nama atau ID (P001…)"
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 15,
+              color: "var(--ink)",
+              fontFamily: "inherit",
+            }}
+          />
+          <Link
+            href="/patients/new"
+            className="btn btn-primary"
+            style={{ padding: "8px 14px", fontSize: 13, textDecoration: "none" }}
+          >
+            + Pasien Baru
+          </Link>
         </div>
-      )}
 
-      {error && (
-        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
-          Gagal memuat data: {error}
-        </div>
-      )}
+        <div
+          className="pat-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: selected ? "1fr 1.4fr" : "1fr",
+            gap: 16,
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {loadError && (
+              <div className="glass" style={{ padding: 18, fontSize: 13, color: "var(--crit-deep)" }}>
+                {loadError}
+              </div>
+            )}
+            {!loadError && filtered.length === 0 && patients.length === 0 && (
+              <div className="glass" style={{ padding: 18, fontSize: 13, color: "var(--ink-3)" }}>
+                Memuat daftar pasien…
+              </div>
+            )}
+            {filtered.map((p) => {
+              const isSel = selected?.id === p.id;
+              const gender = inferGender(p.nama);
+              const condition = p.kategori || p.A?.diagnosa || "";
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedId(p.id)}
+                  className="lift"
+                  style={{
+                    padding: 14,
+                    borderRadius: 14,
+                    background: isSel ? "var(--ink)" : "var(--bg-2)",
+                    color: isSel ? "var(--bg)" : "var(--ink)",
+                    border: "1px solid " + (isSel ? "var(--ink)" : "var(--line)"),
+                    cursor: "pointer",
+                    display: "grid",
+                    gridTemplateColumns: "52px 1fr auto",
+                    gap: 12,
+                    alignItems: "center",
+                    transition: "all 320ms cubic-bezier(0.22,1,0.36,1)",
+                  }}
+                >
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: isSel ? "var(--teal)" : "var(--teal-soft)",
+                      color: isSel ? "var(--ink)" : "var(--teal-deep)",
+                      padding: "6px 8px",
+                      borderRadius: 8,
+                      textAlign: "center",
+                    }}
+                  >
+                    {p.id}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 500 }}>{p.nama}</div>
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                      {gender && `${gender} · `}
+                      {p.umur ? `${p.umur} thn` : ""}
+                      {condition ? ` · ${condition}` : ""}
+                    </div>
+                  </div>
+                  <span className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
+                    {p.tanggal_kunjungan || "—"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
-      {hydrated && filtered.length === 0 && (
-        <div className="text-center py-16 border border-dashed border-white/10 rounded-2xl">
-          <Users className="w-12 h-12 mx-auto text-slate-600 mb-3" />
-          <p className="text-slate-500 mb-3">{patients.length === 0 ? "Belum ada pasien terdaftar." : "Tidak ada pasien yang cocok."}</p>
-          {patients.length === 0 && (
-            <Link href="/patients/new" className="text-purple-400 hover:text-purple-300 text-sm">
-              Tambah pasien pertama
-            </Link>
+          {selected && (
+            <div
+              className="glass"
+              style={{ padding: 28, position: "sticky", top: 100, alignSelf: "flex-start" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  marginBottom: 18,
+                }}
+              >
+                <div>
+                  <span className="chip chip-teal">{selected.id}</span>
+                  <h2 className="serif" style={{ fontSize: "2.2rem", fontWeight: 400, marginTop: 12 }}>
+                    {selected.nama}
+                  </h2>
+                  <div style={{ color: "var(--ink-3)", marginTop: 4 }}>
+                    {(() => {
+                      const g = inferGender(selected.nama);
+                      const genderLabel = g === "P" ? "Perempuan" : g === "L" ? "Laki-laki" : "—";
+                      return (
+                        <>
+                          {genderLabel} · {selected.umur || "-"} tahun
+                        </>
+                      );
+                    })()}
+                  </div>
+                  {selected.alamat && (
+                    <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 6 }}>
+                      {selected.alamat}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="btn btn-ghost"
+                  style={{ padding: 8 }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <path d="m6 6 12 12M18 6 6 18" />
+                  </svg>
+                </button>
+              </div>
+
+              <h3
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--ink-3)",
+                  marginBottom: 14,
+                }}
+              >
+                SOAP · kunjungan {selected.tanggal_kunjungan || "—"}
+              </h3>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <SoapBlock
+                  letter="S"
+                  title="Subjective"
+                  content={selected.S?.keluhan || ""}
+                  fields={selected.S?.riwayat ? [["riwayat", selected.S.riwayat]] : []}
+                />
+                <SoapBlock
+                  letter="O"
+                  title="Objective"
+                  content={selected.O?.catatan || ""}
+                  fields={objectiveFields(selected.O)}
+                />
+                <SoapBlock
+                  letter="A"
+                  title="Assessment"
+                  content={selected.A?.diagnosa || ""}
+                  fields={[]}
+                />
+                <SoapBlock
+                  letter="P"
+                  title="Plan"
+                  content={selected.P?.tindakan || ""}
+                  fields={
+                    [
+                      selected.P?.resep ? ["resep", selected.P.resep] : null,
+                      selected.P?.jadwal_kontrol ? ["kontrol", selected.P.jadwal_kontrol] : null,
+                    ].filter(Boolean) as [string, string][]
+                  }
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 8, marginTop: 22, flexWrap: "wrap" }}>
+                <Link
+                  href="/safety-checker"
+                  className="btn btn-primary"
+                  style={{ textDecoration: "none" }}
+                >
+                  <NavIcon name="shield" /> Cek interaksi obat
+                </Link>
+                <Link
+                  href={`/patients/${selected.id}`}
+                  className="btn"
+                  style={{ textDecoration: "none" }}
+                >
+                  Edit SOAP
+                </Link>
+              </div>
+            </div>
           )}
         </div>
-      )}
+      </div>
 
-      {filtered.length > 0 && (
-        <div className="overflow-x-auto bg-white/5 backdrop-blur-2xl border border-white/10 rounded-2xl">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 text-xs uppercase text-slate-500">
-                <th className="text-left p-3 px-4">ID</th>
-                <th className="text-left p-3">Nama</th>
-                <th className="text-left p-3">Umur</th>
-                <th className="text-left p-3">Tgl Kunjungan</th>
-                <th className="text-left p-3">Kategori</th>
-                <th className="text-right p-3 px-4">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr key={p.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                  <td className="p-3 px-4 font-mono text-xs text-purple-400">{p.id}</td>
-                  <td className="p-3 font-medium">{p.nama}</td>
-                  <td className="p-3 text-slate-400">{p.umur || "-"} thn</td>
-                  <td className="p-3 text-slate-400">{formatTanggalLong(p.tanggal_kunjungan)}</td>
-                  <td className="p-3">
-                    <span className="text-xs px-2 py-1 rounded-md bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      {p.kategori || "Umum"}
-                    </span>
-                  </td>
-                  <td className="p-3 px-4 text-right">
-                    <Link
-                      href={`/patients/${p.id}`}
-                      aria-label={`Lihat ${p.nama}`}
-                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 text-slate-400 hover:text-purple-400 transition-colors"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Link>
-                    {role === "admin" && (
-                      <button
-                        onClick={() => handleDelete(p.id, p.nama)}
-                        aria-label={`Hapus ${p.nama}`}
-                        className="ml-1 inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <style>{`
+        @media (max-width: 1080px) { .pat-grid { grid-template-columns: 1fr !important; } }
+      `}</style>
     </div>
   );
 }

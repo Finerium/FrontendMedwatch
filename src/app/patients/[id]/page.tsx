@@ -1,128 +1,401 @@
 "use client";
 
+import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Printer, FileDown, Loader2 } from "lucide-react";
-import { usePatientStore, type Patient } from "@/lib/store";
-import { composeO, formatTanggalLong } from "@/lib/patient-format";
-import { generateReport } from "@/lib/pdf-generator";
-import { toast } from "sonner";
+import { api, ApiError } from "@/lib/api";
+import type { Patient } from "@/lib/patient-format";
+import { NavIcon } from "@/components/shell/NavIcon";
 
-export default function PatientDetailPage() {
+export default function EditPatientPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
-  const fetchOne = usePatientStore((s) => s.fetchOne);
+  const id = typeof params.id === "string" ? params.id : "";
 
-  const [patient, setPatient] = useState<Patient | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
+  const [form, setForm] = useState<Patient | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    fetchOne(params.id).then((p) => {
-      if (mounted) {
-        setPatient(p);
-        setLoading(false);
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<Patient>(`/api/patients/${id}`);
+        if (!cancelled) {
+          setForm({
+            ...data,
+            S: { keluhan: data.S?.keluhan || "", riwayat: data.S?.riwayat || "" },
+            O: data.O || {},
+            A: { diagnosa: data.A?.diagnosa || "" },
+            P: {
+              tindakan: data.P?.tindakan || "",
+              resep: data.P?.resep || "",
+              jadwal_kontrol: data.P?.jadwal_kontrol || "",
+            },
+          });
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : "Gagal memuat pasien");
       }
-    });
-    return () => { mounted = false; };
-  }, [params.id, fetchOne]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  const handlePdf = async () => {
-    if (!patient) return;
-    setExporting(true);
+  if (!form) {
+    return (
+      <div className="page-in" style={{ padding: "160px 24px 80px", maxWidth: 1100, margin: "0 auto" }}>
+        <div className="glass" style={{ padding: 40, textAlign: "center" }}>
+          <p style={{ color: "var(--ink-3)" }}>{loadError || "Memuat data pasien…"}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const update = <K extends keyof Patient>(key: K, value: Patient[K]) =>
+    setForm((s) => (s ? { ...s, [key]: value } : s));
+  const updateO = (key: keyof Patient["O"], value: string) =>
+    setForm((s) => (s ? { ...s, O: { ...s.O, [key]: value } } : s));
+  const updateS = (key: keyof Patient["S"], value: string) =>
+    setForm((s) => (s ? { ...s, S: { ...s.S, [key]: value } } : s));
+  const updateA = (key: keyof Patient["A"], value: string) =>
+    setForm((s) => (s ? { ...s, A: { ...s.A, [key]: value } } : s));
+  const updateP = (key: keyof Patient["P"], value: string) =>
+    setForm((s) => (s ? { ...s, P: { ...s.P, [key]: value } } : s));
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    if (!form.nama.trim() || !form.S.keluhan.trim() || !form.A.diagnosa.trim() || !form.P.tindakan.trim()) {
+      setError("Field nama, keluhan (S), diagnosa (A), dan tindakan (P) wajib diisi.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
     try {
-      await generateReport({ reportType: "rekam-medis", pasienId: patient.id });
-      toast.success("PDF diunduh");
+      await api.put(`/api/patients/${id}`, form);
+      router.push("/patients");
     } catch (e) {
-      toast.error(`Gagal generate PDF: ${e}`);
+      setError(e instanceof ApiError ? e.message : "Gagal menyimpan");
     } finally {
-      setExporting(false);
+      setBusy(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 text-slate-500">
-        <Loader2 className="w-5 h-5 animate-spin mr-2" /> Memuat...
-      </div>
-    );
-  }
-
-  if (!patient) {
-    return (
-      <div className="space-y-4">
-        <Link href="/patients" className="text-sm text-slate-400 hover:text-white inline-flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" /> Kembali
-        </Link>
-        <p className="text-red-400">Pasien tidak ditemukan.</p>
-      </div>
-    );
-  }
-
-  const tindakanLines = patient.P.tindakan.split("\n").map((s) => s.trim()).filter(Boolean);
+  const remove = async () => {
+    if (!confirm(`Hapus pasien ${form.id} (${form.nama})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.delete(`/api/patients/${id}`);
+      router.push("/patients");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Gagal menghapus");
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; color: black !important; }
-          .print-card { background: white !important; color: black !important; border: 1px solid #999 !important; }
-        }
-      `}</style>
+    <div
+      className="page-in"
+      style={{ padding: "120px 24px 80px", position: "relative", maxWidth: 1100, margin: "0 auto" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 100,
+          right: -80,
+          width: 240,
+          height: 240,
+          borderRadius: "50%",
+          background: "var(--ink)",
+          opacity: 0.92,
+          zIndex: 0,
+        }}
+      />
+      <div className="stagger" style={{ position: "relative", zIndex: 2 }}>
+        <span
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            color: "var(--ink-3)",
+            textTransform: "uppercase",
+          }}
+        >
+          Edit pasien · {form.id}
+        </span>
+        <h1
+          className="serif"
+          style={{
+            fontSize: "clamp(2.4rem, 5vw, 4rem)",
+            fontWeight: 300,
+            letterSpacing: "-0.03em",
+            marginTop: 8,
+            marginBottom: 28,
+          }}
+        >
+          {form.nama || "Pasien"}<em style={{ fontStyle: "italic", opacity: 0.4 }}>.</em>
+        </h1>
 
-      <div className="no-print flex items-center justify-between">
-        <Link href="/patients" className="text-sm text-slate-400 hover:text-white inline-flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" /> Kembali
-        </Link>
-        <div className="flex gap-2">
-          <button onClick={() => window.print()} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 hover:bg-white/10">
-            <Printer className="w-4 h-4" /> Print
-          </button>
-          <button onClick={handlePdf} disabled={exporting} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white">
-            {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />}
-            Ekspor PDF
-          </button>
-        </div>
+        <form onSubmit={save} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>1 · Identitas</h3>
+            <div style={twoColStyle}>
+              <Field label="Nama (wajib)">
+                <input
+                  className="input"
+                  value={form.nama}
+                  onChange={(e) => update("nama", e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Umur">
+                <input
+                  className="input"
+                  value={form.umur || ""}
+                  onChange={(e) => update("umur", e.target.value)}
+                />
+              </Field>
+              <Field label="Alamat">
+                <input
+                  className="input"
+                  value={form.alamat || ""}
+                  onChange={(e) => update("alamat", e.target.value)}
+                />
+              </Field>
+              <Field label="Kategori">
+                <input
+                  className="input"
+                  value={form.kategori || ""}
+                  onChange={(e) => update("kategori", e.target.value)}
+                />
+              </Field>
+              <Field label="Tanggal Kunjungan">
+                <input
+                  className="input"
+                  value={form.tanggal_kunjungan || ""}
+                  onChange={(e) => update("tanggal_kunjungan", e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>2 · S — Subjective</h3>
+            <Field label="Keluhan (wajib)">
+              <textarea
+                className="input"
+                rows={3}
+                value={form.S.keluhan}
+                onChange={(e) => updateS("keluhan", e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Riwayat">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.S.riwayat || ""}
+                onChange={(e) => updateS("riwayat", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>3 · O — Objective</h3>
+            <div style={twoColStyle}>
+              <Field label="Tekanan darah (td.)">
+                <input
+                  className="input"
+                  value={form.O.tekanan_darah || ""}
+                  onChange={(e) => updateO("tekanan_darah", e.target.value)}
+                />
+              </Field>
+              <Field label="BB (kg)">
+                <input
+                  className="input"
+                  value={form.O.bb_kg || ""}
+                  onChange={(e) => updateO("bb_kg", e.target.value)}
+                />
+              </Field>
+              <Field label="tb (cm)">
+                <input
+                  className="input"
+                  value={form.O.tb_cm || ""}
+                  onChange={(e) => updateO("tb_cm", e.target.value)}
+                />
+              </Field>
+              <Field label="lila (cm)">
+                <input
+                  className="input"
+                  value={form.O.lila_cm || ""}
+                  onChange={(e) => updateO("lila_cm", e.target.value)}
+                />
+              </Field>
+              <Field label="Nadi">
+                <input
+                  className="input"
+                  value={form.O.nadi || ""}
+                  onChange={(e) => updateO("nadi", e.target.value)}
+                />
+              </Field>
+              <Field label="Suhu (°C)">
+                <input
+                  className="input"
+                  value={form.O.suhu_c || ""}
+                  onChange={(e) => updateO("suhu_c", e.target.value)}
+                />
+              </Field>
+              <Field label="Respirasi">
+                <input
+                  className="input"
+                  value={form.O.respirasi || ""}
+                  onChange={(e) => updateO("respirasi", e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Catatan">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.O.catatan || ""}
+                onChange={(e) => updateO("catatan", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>4 · A — Assessment</h3>
+            <Field label="Diagnosa (wajib)">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.A.diagnosa}
+                onChange={(e) => updateA("diagnosa", e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>5 · P — Plan</h3>
+            <Field label="Tindakan (wajib)">
+              <textarea
+                className="input"
+                rows={4}
+                value={form.P.tindakan}
+                onChange={(e) => updateP("tindakan", e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Resep">
+              <input
+                className="input"
+                value={form.P.resep || ""}
+                onChange={(e) => updateP("resep", e.target.value)}
+              />
+            </Field>
+            <Field label="Jadwal Kontrol">
+              <input
+                className="input"
+                value={form.P.jadwal_kontrol || ""}
+                onChange={(e) => updateP("jadwal_kontrol", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: "color-mix(in oklab, var(--crit) 12%, transparent)",
+                color: "var(--crit-deep)",
+                fontSize: 13,
+                border: "1px solid color-mix(in oklab, var(--crit) 30%, transparent)",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              className="btn"
+              onClick={remove}
+              disabled={busy}
+              style={{
+                color: "var(--crit-deep)",
+                borderColor: "color-mix(in oklab, var(--crit) 40%, transparent)",
+              }}
+            >
+              Hapus pasien
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href="/patients" className="btn" style={{ textDecoration: "none" }}>
+                Batal
+              </Link>
+              <Link
+                href="/safety-checker"
+                className="btn"
+                style={{ textDecoration: "none" }}
+              >
+                <NavIcon name="shield" /> Cek interaksi
+              </Link>
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                {busy ? "Menyimpan…" : "Simpan perubahan"}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
-
-      <article className="print-card bg-white/5 border border-white/10 rounded-2xl p-8 font-mono text-sm leading-relaxed">
-        <header className="mb-4 pb-3 border-b border-white/10">
-          <p>Tgl <strong>{formatTanggalLong(patient.tanggal_kunjungan)}</strong></p>
-          <p>Nama   : {patient.nama}</p>
-          <p>Umur   : {patient.umur || "-"} THN</p>
-          <p>Alamat : {patient.alamat || "-"}</p>
-          {patient.kategori && <p>Kategori: {patient.kategori}</p>}
-        </header>
-
-        <section className="mb-4">
-          <p><strong>S</strong> : {patient.S.keluhan}</p>
-          {patient.S.riwayat && <p className="ml-5">{patient.S.riwayat}</p>}
-        </section>
-
-        <section className="mb-4">
-          <p><strong>O</strong> : {composeO(patient.O)}</p>
-        </section>
-
-        <section className="mb-4">
-          <p><strong>A</strong> : {patient.A.diagnosa}</p>
-        </section>
-
-        <section>
-          <p><strong>P</strong> :</p>
-          <ul className="ml-5 list-none">
-            {tindakanLines.map((line, i) => (<li key={i}>{line}</li>))}
-            {patient.P.resep && <li className="mt-2">Resep: {patient.P.resep}</li>}
-            {patient.P.jadwal_kontrol && <li>Kontrol: {patient.P.jadwal_kontrol}</li>}
-          </ul>
-        </section>
-
-        <footer className="mt-8 pt-3 border-t border-white/10 text-xs text-slate-500">
-          ID Pasien: {patient.id}
-        </footer>
-      </article>
     </div>
+  );
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: 11,
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  color: "var(--ink-3)",
+  marginBottom: 14,
+};
+
+const twoColStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+  marginBottom: 12,
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+      <span
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          color: "var(--ink-3)",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }
