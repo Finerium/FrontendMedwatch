@@ -370,14 +370,20 @@ export default function DrugSearchPage() {
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link
-                  href="/safety-checker"
+                  href={`/safety-checker?drug=${encodeURIComponent(selected.name)}`}
                   className="btn btn-primary"
                   style={{ textDecoration: "none" }}
                 >
                   <NavIcon name="shield" />
                   Cek interaksi obat ini
                 </Link>
-                <button className="btn">Bandingkan</button>
+                <Link
+                  href={`/drug-comparison?initial=${encodeURIComponent(selected.name)}`}
+                  className="btn"
+                  style={{ textDecoration: "none" }}
+                >
+                  Bandingkan
+                </Link>
               </div>
             </div>
           )}

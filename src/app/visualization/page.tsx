@@ -96,9 +96,9 @@ function LineChart({ data, labels }: { data: number[]; labels: string[] }) {
 }
 
 function BarChart({ data, color = "var(--teal)" }: { data: { label: string; n: number }[]; color?: string }) {
-  const max = Math.max(...data.map((d) => d.n));
+  const max = Math.max(...data.map((d) => d.n), 1);
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160 }}>
+    <div style={{ display: "flex", alignItems: "stretch", gap: 8, height: 160 }}>
       {data.map((d, i) => {
         const h = (d.n / max) * 100;
         return (
@@ -115,11 +115,12 @@ function BarChart({ data, color = "var(--teal)" }: { data: { label: string; n: n
             <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
               {d.n}
             </span>
-            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "flex-end" }}>
+            <div style={{ width: "100%", flex: 1, display: "flex", alignItems: "flex-end" }}>
               <div
                 style={{
                   width: "100%",
                   height: h + "%",
+                  minHeight: d.n > 0 ? 2 : 0,
                   background: color,
                   borderRadius: "6px 6px 2px 2px",
                   animation: "barIn 1s cubic-bezier(0.22,1,0.36,1) both",

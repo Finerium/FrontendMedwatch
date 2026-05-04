@@ -18,11 +18,24 @@ const sevMap: Record<ScrapeJob["status"], "sedang" | "ringan" | "serius"> = {
 
 export default function AdminScraperPage() {
   const [jobs, setJobs] = useState<ScrapeJob[]>([
-    { name: "BPOM · daftar obat", status: "success", last: "3 menit lalu", count: "12.428" },
-    { name: "WHO · adverse reactions", status: "success", last: "1 jam lalu", count: "8.901" },
-    { name: "PIONAS · interaksi", status: "success", last: "6 jam lalu", count: "4.156" },
-    { name: "BPJS · formularium", status: "failed", last: "2 hari lalu", count: "—" },
-    { name: "Kemenkes · regulasi", status: "success", last: "1 hari lalu", count: "342" },
+    {
+      name: "Drugs.com · efek samping per obat",
+      status: "success",
+      last: "3 menit lalu",
+      count: "drugs.com/sfx/",
+    },
+    {
+      name: "Drugs.com · FDA recalls",
+      status: "success",
+      last: "6 jam lalu",
+      count: "drugs.com/fda-recalls/",
+    },
+    {
+      name: "MedlinePlus NIH · drug interactions",
+      status: "success",
+      last: "1 hari lalu",
+      count: "medlineplus.gov/druginfo/",
+    },
   ]);
   const [busyIdx, setBusyIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -140,6 +153,19 @@ export default function AdminScraperPage() {
             {error}
           </div>
         )}
+        <p
+          className="mono"
+          style={{
+            marginTop: 24,
+            fontSize: 11,
+            color: "var(--ink-3)",
+            letterSpacing: "0.04em",
+            lineHeight: 1.6,
+            maxWidth: 780,
+          }}
+        >
+          Scraper trigger di MVP ini menjalankan job mock 3 detik. Data hasil scraping aktual disinkronkan offline saat development modul anggota1 (Ghaisan).
+        </p>
       </div>
     </div>
   );

@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import type { Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
+
+export const dynamic = "force-dynamic";
 
 type SeverityWord = "aman" | "ringan" | "sedang" | "serius";
 
@@ -93,6 +96,17 @@ const OVERALL_STYLE: Record<SeverityWord, { color: string; bg: string; label: st
 };
 
 export default function SafetyCheckerPage() {
+  return (
+    <Suspense fallback={null}>
+      <SafetyCheckerInner />
+    </Suspense>
+  );
+}
+
+function SafetyCheckerInner() {
+  const params = useSearchParams();
+  const initialDrugParam = params.get("drug") || "";
+
   const user = useAuthStore((s) => s.user);
   const hydrated = useAuthStore((s) => s.hydrated);
   const fetchMe = useAuthStore((s) => s.fetchMe);
@@ -104,6 +118,7 @@ export default function SafetyCheckerPage() {
   const [patientsLoaded, setPatientsLoaded] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [drugs, setDrugs] = useState<string[]>([]);
+  const [prefillApplied, setPrefillApplied] = useState(false);
   const [drugQuery, setDrugQuery] = useState("");
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -159,6 +174,21 @@ export default function SafetyCheckerPage() {
     () => Object.fromEntries(drugDb.map((d) => [d.name.toLowerCase(), d])),
     [drugDb],
   );
+
+  useEffect(() => {
+    if (prefillApplied) return;
+    if (!initialDrugParam || !drugsLoaded) return;
+    const matches = initialDrugParam
+      .split(",")
+      .map((s) => decodeURIComponent(s.trim()))
+      .map((s) => drugLookup[s.toLowerCase()])
+      .filter(Boolean)
+      .map((d) => d!.name);
+    if (matches.length > 0 && drugs.length === 0) {
+      setDrugs(matches);
+    }
+    setPrefillApplied(true);
+  }, [initialDrugParam, drugsLoaded, drugLookup, drugs.length, prefillApplied]);
 
   const drugSuggestions = useMemo(() => {
     if (!drugQuery) return [];
