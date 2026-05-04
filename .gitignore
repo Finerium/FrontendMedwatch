@@ -48,3 +48,8 @@ next-env.d.ts
 
 # backup files
 *.bak
+.env*.local
+
+# Ghaisan local-only folders (preserved out of repo)
+pitch-video/
+untitled folder/
