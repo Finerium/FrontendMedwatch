@@ -68,7 +68,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
 }));
 
 export function landingForRole(role: Role): string {
-  if (role === "masyarakat") return "/pasien/profile";
+  if (role === "masyarakat") return "/drug-search";
   if (role === "admin") return "/admin/dashboard";
-  return "/";
+  return "/dashboard";
 }

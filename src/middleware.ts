@@ -13,7 +13,6 @@ const PUBLIC_PREFIXES = [
 ];
 
 const ADMIN_PREFIXES = ["/admin"];
-const MASYARAKAT_PREFIXES = ["/pasien"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
@@ -31,6 +30,12 @@ function decodeRole(token: string): string | null {
   } catch {
     return null;
   }
+}
+
+function landingFor(role: string): string {
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "masyarakat") return "/drug-search";
+  return "/dashboard";
 }
 
 export function middleware(req: NextRequest) {
@@ -53,16 +58,24 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(landingFor(role), req.url));
+  }
+
   if (ADMIN_PREFIXES.some((p) => pathname.startsWith(p)) && role !== "admin") {
-    return NextResponse.redirect(new URL("/", req.url));
+    return NextResponse.redirect(new URL(landingFor(role), req.url));
   }
-  if (MASYARAKAT_PREFIXES.some((p) => pathname.startsWith(p)) && !["masyarakat", "admin"].includes(role)) {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
-  if (role === "masyarakat" && !MASYARAKAT_PREFIXES.some((p) => pathname.startsWith(p))) {
-    const allowedForMasyarakat = ["/drug-search", "/safety-checker", "/api"];
-    if (!allowedForMasyarakat.some((p) => pathname.startsWith(p)) && pathname !== "/pasien/profile") {
-      return NextResponse.redirect(new URL("/pasien/profile", req.url));
+
+  if (role === "masyarakat") {
+    const allowed = [
+      "/dashboard",
+      "/drug-search",
+      "/safety-checker",
+      "/pasien",
+      "/api",
+    ];
+    if (!allowed.some((p) => pathname.startsWith(p))) {
+      return NextResponse.redirect(new URL("/drug-search", req.url));
     }
   }
 
