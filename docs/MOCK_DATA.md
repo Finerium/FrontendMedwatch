@@ -460,7 +460,7 @@ export interface Patient {
 
 ### Data (generate 50 patients)
 
- Code should generate 50 patients with:
+the developer should generate 50 patients with:
 - Indonesian names (mix of Javanese, Sundanese, Batak, Minang, etc.)
 - NIK format: 16 digits (e.g., "3204150601980001")
 - Ages: range 18-75
@@ -474,7 +474,7 @@ export interface Patient {
     "Bronkitis", "Anemia", "Gangguan Kecemasan"
 - assignedDrugs: 1-3 drug IDs from the drugs list
 
-Here are 10 sample entries to show the pattern ( Code generates the remaining 40):
+Here are 10 sample entries to show the pattern (the developer generates the remaining 40):
 
 ```ts
 export const patients: Patient[] = [
@@ -628,7 +628,7 @@ export const patients: Patient[] = [
     complaint: "Hipertensi",
     assignedDrugs: ["drug-013", "drug-018"],
   },
-  // ...  Code generates patient-011 through patient-050
+  // ... the developer generates patient-011 through patient-050
   // following same patterns, diverse provinces, diverse complaints
 ];
 ```
@@ -768,7 +768,7 @@ export const provinceData: ProvinceData[] = [
 ];
 ```
 
-Note: For the TopoJSON file,  Code should fetch Indonesia province boundaries from:
+Note: For the TopoJSON file, the developer should fetch Indonesia province boundaries from:
 `https://raw.githubusercontent.com/superpikar/indonesia-geojson/master/indonesia-provinces.geojson`
 or generate/find a suitable TopoJSON. The province IDs in the data above use ISO 3166-2:ID codes.
 
@@ -803,7 +803,7 @@ export interface Molecule {
 
 ### Data (5 molecules)
 
- Code should generate realistic 3D coordinates for these molecules. Approximate coordinates are fine since this is visual-only. Here are the molecules to model:
+the developer should generate realistic 3D coordinates for these molecules. Approximate coordinates are fine since this is visual-only. Here are the molecules to model:
 
 ```ts
 export const molecules: Molecule[] = [
@@ -813,7 +813,7 @@ export const molecules: Molecule[] = [
     formula: "C9H8O4",
     atoms: [
       // 9 Carbon, 8 Hydrogen, 4 Oxygen atoms
-      //  Code generates positions based on aspirin molecular geometry
+      // the developer generates positions based on aspirin molecular geometry
       // Benzene ring flat on XY plane, acetyl group extending from ring
     ],
     bonds: [
@@ -852,7 +852,7 @@ export const molecules: Molecule[] = [
   },
 ];
 
-// NOTE:  Code should generate actual [x, y, z] coordinates.
+// NOTE: the developer should generate actual [x, y, z] coordinates.
 // Use approximate molecular geometry. Scale: 1 unit = 1 Angstrom.
 // Center each molecule at origin [0, 0, 0].
 ```
@@ -894,7 +894,7 @@ export const heatmapData: HeatmapData = {
     "Tremor", "Mulut Kering",
   ],
   cells: [
-    //  Code generates the full matrix (12 drugs x 12 side effects = 144 cells)
+    // the developer generates the full matrix (12 drugs x 12 side effects = 144 cells)
     // Use the frequency data from the drugs database above
     // If a drug doesn't have a specific side effect, frequency = 0
     // Example entries:
@@ -906,7 +906,7 @@ export const heatmapData: HeatmapData = {
     { drugId: "drug-007", drugName: "Metformin", sideEffect: "Mual", frequency: 20, severity: "Low" },
     { drugId: "drug-007", drugName: "Metformin", sideEffect: "Diare", frequency: 18, severity: "Low" },
     { drugId: "drug-009", drugName: "Dexamethasone", sideEffect: "Insomnia", frequency: 10, severity: "Medium" },
-    // ...  Code fills in the remaining cells using drug side effect data
+    // ... the developer fills in the remaining cells using drug side effect data
   ],
 };
 ```
@@ -1236,7 +1236,7 @@ export const complaintDistribution: ComplaintDistribution[] = [
 
 ---
 
-## Data Generation Notes for  Code
+## Data Generation Notes for the developer
 
 1. **Patients**: Generate remaining 40 patients (patient-011 to patient-050) following the same patterns. Distribute across all 34 provinces with heavier weight on Java. Use diverse Indonesian names.
 

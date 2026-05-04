@@ -1,6 +1,6 @@
 # DESIGN_SYSTEM.md - MedWatch Premium Visual Specifications
 
-This document is the single source of truth for all visual decisions.  Code must read this before writing any styling code.
+This document is the single source of truth for all visual decisions. the developer must read this before writing any styling code.
 
 ---
 
