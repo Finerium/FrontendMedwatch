@@ -1,314 +1,401 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { PageTransition } from "@/components/layout/PageTransition";
-import { GlassCard } from "@/components/shared/GlassCard";
-import { useHydratedPatientStore } from "@/lib/use-hydrated-store";
-import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  Pencil,
-  Trash2,
-  User,
-  Phone,
-  MapPin,
-  Calendar,
-  Stethoscope,
-  Activity,
-  FileText,
-  Pill,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { api, ApiError } from "@/lib/api";
+import type { Patient } from "@/lib/patient-format";
+import { NavIcon } from "@/components/shell/NavIcon";
 
-function formatDate(dateStr: string): string {
-  const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-  const date = new Date(dateStr);
-  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-}
-
-export default function PatientDetailPage() {
-  const params = useParams();
+export default function EditPatientPage() {
   const router = useRouter();
-  const { patients, deletePatient, hydrated } = useHydratedPatientStore();
-  const [showDelete, setShowDelete] = useState(false);
+  const params = useParams<{ id: string }>();
+  const id = typeof params.id === "string" ? params.id : "";
 
-  const id = params.id as string;
-  const patient = patients.find((p) => p.id === id);
+  const [form, setForm] = useState<Patient | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!hydrated) {
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<Patient>(`/api/patients/${id}`);
+        if (!cancelled) {
+          setForm({
+            ...data,
+            S: { keluhan: data.S?.keluhan || "", riwayat: data.S?.riwayat || "" },
+            O: data.O || {},
+            A: { diagnosa: data.A?.diagnosa || "" },
+            P: {
+              tindakan: data.P?.tindakan || "",
+              resep: data.P?.resep || "",
+              jadwal_kontrol: data.P?.jadwal_kontrol || "",
+            },
+          });
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof ApiError ? e.message : "Gagal memuat pasien");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (!form) {
     return (
-      <PageTransition>
-        <div className="space-y-6">
-          <div className="h-4 w-48 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse" />
-          <div className="h-8 w-64 rounded-lg bg-white/50 dark:bg-white/[0.05] animate-pulse" />
-          <div className="h-64 rounded-2xl bg-white/50 dark:bg-white/[0.05] animate-pulse" />
+      <div className="page-in" style={{ padding: "160px 24px 80px", maxWidth: 1100, margin: "0 auto" }}>
+        <div className="glass" style={{ padding: 40, textAlign: "center" }}>
+          <p style={{ color: "var(--ink-3)" }}>{loadError || "Memuat data pasien…"}</p>
         </div>
-      </PageTransition>
+      </div>
     );
   }
 
-  if (!patient) {
-    return (
-      <PageTransition>
-        <div className="space-y-6">
-          <Link
-            href="/patients"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Kembali ke Data Pasien
-          </Link>
-          <GlassCard className="flex flex-col items-center justify-center py-16">
-            <User className="w-16 h-16 text-slate-300 dark:text-slate-600" />
-            <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mt-4">
-              Pasien tidak ditemukan
-            </p>
-            <Link
-              href="/patients"
-              className="mt-4 px-4 py-2 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-            >
-              Kembali ke Daftar Pasien
-            </Link>
-          </GlassCard>
-        </div>
-      </PageTransition>
-    );
-  }
+  const update = <K extends keyof Patient>(key: K, value: Patient[K]) =>
+    setForm((s) => (s ? { ...s, [key]: value } : s));
+  const updateO = (key: keyof Patient["O"], value: string) =>
+    setForm((s) => (s ? { ...s, O: { ...s.O, [key]: value } } : s));
+  const updateS = (key: keyof Patient["S"], value: string) =>
+    setForm((s) => (s ? { ...s, S: { ...s.S, [key]: value } } : s));
+  const updateA = (key: keyof Patient["A"], value: string) =>
+    setForm((s) => (s ? { ...s, A: { ...s.A, [key]: value } } : s));
+  const updateP = (key: keyof Patient["P"], value: string) =>
+    setForm((s) => (s ? { ...s, P: { ...s.P, [key]: value } } : s));
 
-  const handleDelete = () => {
-    deletePatient(patient.id);
-    toast.success("Pasien berhasil dihapus");
-    router.push("/patients");
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    if (!form.nama.trim() || !form.S.keluhan.trim() || !form.A.diagnosa.trim() || !form.P.tindakan.trim()) {
+      setError("Field nama, keluhan (S), diagnosa (A), dan tindakan (P) wajib diisi.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await api.put(`/api/patients/${id}`, form);
+      router.push("/patients");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Gagal menyimpan");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const sectionClass = "space-y-3";
-  const sectionTitle = "text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2";
-  const fieldLabel = "text-xs text-slate-500 dark:text-slate-400";
-  const fieldValue = "text-sm text-slate-900 dark:text-slate-50 font-medium";
+  const remove = async () => {
+    if (!confirm(`Hapus pasien ${form.id} (${form.nama})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.delete(`/api/patients/${id}`);
+      router.push("/patients");
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Gagal menghapus");
+      setBusy(false);
+    }
+  };
 
   return (
-    <PageTransition>
-      <div className="space-y-6">
-        {/* Back Link */}
-        <Link
-          href="/patients"
-          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+    <div
+      className="page-in"
+      style={{ padding: "120px 24px 80px", position: "relative", maxWidth: 1100, margin: "0 auto" }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 100,
+          right: -80,
+          width: 240,
+          height: 240,
+          borderRadius: "50%",
+          background: "var(--ink)",
+          opacity: 0.92,
+          zIndex: 0,
+        }}
+      />
+      <div className="stagger" style={{ position: "relative", zIndex: 2 }}>
+        <span
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            color: "var(--ink-3)",
+            textTransform: "uppercase",
+          }}
         >
-          <ArrowLeft className="w-4 h-4" />
-          Kembali ke Data Pasien
-        </Link>
-
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-              {patient.name}
-            </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 font-mono">
-              {patient.id}
-            </p>
-          </motion.div>
-
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/patients/${patient.id}/edit`}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white shadow-lg transition-colors"
-            >
-              <Pencil className="w-4 h-4" />
-              Edit
-            </Link>
-            <button
-              onClick={() => setShowDelete(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-500/10 border border-red-500/20 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Hapus
-            </button>
-          </div>
-        </div>
-
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Identitas */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-          >
-            <GlassCard>
-              <div className={sectionClass}>
-                <h2 className={sectionTitle}>
-                  <User className="w-4 h-4" />
-                  Identitas Pasien
-                </h2>
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div>
-                    <p className={fieldLabel}>Nama Lengkap</p>
-                    <p className={fieldValue}>{patient.name}</p>
-                  </div>
-                  <div>
-                    <p className={fieldLabel}>Umur / Gender</p>
-                    <p className={fieldValue}>
-                      {patient.age} tahun / {patient.gender}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className={fieldLabel}>
-                      <MapPin className="w-3 h-3 inline mr-1" />
-                      Alamat
-                    </p>
-                    <p className={fieldValue}>{patient.address}</p>
-                  </div>
-                  {patient.phone && (
-                    <div>
-                      <p className={fieldLabel}>
-                        <Phone className="w-3 h-3 inline mr-1" />
-                        No. HP
-                      </p>
-                      <p className={fieldValue}>{patient.phone}</p>
-                    </div>
-                  )}
-                  <div>
-                    <p className={fieldLabel}>
-                      <Calendar className="w-3 h-3 inline mr-1" />
-                      Tanggal Kunjungan
-                    </p>
-                    <p className={fieldValue}>{formatDate(patient.visitDate)}</p>
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          </motion.div>
-
-          {/* SOAP */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-          >
-            <GlassCard>
-              <div className={sectionClass}>
-                <h2 className={sectionTitle}>
-                  <Stethoscope className="w-4 h-4" />
-                  Data Klinis (SOAP)
-                </h2>
-
-                <div className="space-y-4 pt-2">
-                  {/* Subjective */}
-                  <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">
-                      <FileText className="w-3 h-3 inline mr-1" />
-                      Subjective - Keluhan
-                    </p>
-                    <p className="text-sm text-slate-900 dark:text-slate-50">
-                      {patient.complaint}
-                    </p>
-                  </div>
-
-                  {/* Objective */}
-                  {patient.vitalSigns && (
-                    <div className="bg-green-500/5 border border-green-500/10 rounded-xl p-3">
-                      <p className="text-xs font-semibold text-green-500 uppercase tracking-wider mb-1">
-                        <Activity className="w-3 h-3 inline mr-1" />
-                        Objective - Tanda Vital
-                      </p>
-                      <p className="text-sm text-slate-900 dark:text-slate-50 font-mono">
-                        {patient.vitalSigns}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Assessment */}
-                  <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-purple-500 uppercase tracking-wider mb-1">
-                      Assessment - Diagnosa
-                    </p>
-                    <p className="text-sm text-slate-900 dark:text-slate-50 font-medium">
-                      {patient.diagnosis}
-                    </p>
-                  </div>
-
-                  {/* Planning */}
-                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3">
-                    <p className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-1">
-                      <Pill className="w-3 h-3 inline mr-1" />
-                      Planning - Resep Obat
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {patient.prescribedDrugs.map((drug) => (
-                        <span
-                          key={drug}
-                          className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                        >
-                          {drug}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          </motion.div>
-        </div>
-
-        {/* Metadata */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.3 }}
+          Edit pasien · {form.id}
+        </span>
+        <h1
+          className="serif"
+          style={{
+            fontSize: "clamp(2.4rem, 5vw, 4rem)",
+            fontWeight: 300,
+            letterSpacing: "-0.03em",
+            marginTop: 8,
+            marginBottom: 28,
+          }}
         >
-          <GlassCard variant="subtle">
-            <div className="flex flex-wrap gap-6 text-xs text-slate-400 dark:text-slate-500">
-              <span>Dibuat: {new Date(patient.createdAt).toLocaleString("id-ID")}</span>
-              <span>Terakhir diubah: {new Date(patient.updatedAt).toLocaleString("id-ID")}</span>
+          {form.nama || "Pasien"}<em style={{ fontStyle: "italic", opacity: 0.4 }}>.</em>
+        </h1>
+
+        <form onSubmit={save} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>1 · Identitas</h3>
+            <div style={twoColStyle}>
+              <Field label="Nama (wajib)">
+                <input
+                  className="input"
+                  value={form.nama}
+                  onChange={(e) => update("nama", e.target.value)}
+                  required
+                />
+              </Field>
+              <Field label="Umur">
+                <input
+                  className="input"
+                  value={form.umur || ""}
+                  onChange={(e) => update("umur", e.target.value)}
+                />
+              </Field>
+              <Field label="Alamat">
+                <input
+                  className="input"
+                  value={form.alamat || ""}
+                  onChange={(e) => update("alamat", e.target.value)}
+                />
+              </Field>
+              <Field label="Kategori">
+                <input
+                  className="input"
+                  value={form.kategori || ""}
+                  onChange={(e) => update("kategori", e.target.value)}
+                />
+              </Field>
+              <Field label="Tanggal Kunjungan">
+                <input
+                  className="input"
+                  value={form.tanggal_kunjungan || ""}
+                  onChange={(e) => update("tanggal_kunjungan", e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                />
+              </Field>
             </div>
-          </GlassCard>
-        </motion.div>
+          </div>
 
-        {/* Delete Dialog */}
-        <AlertDialog open={showDelete} onOpenChange={setShowDelete}>
-          <AlertDialogContent className="bg-white/90 dark:bg-slate-900/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] rounded-2xl shadow-2xl">
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-slate-900 dark:text-slate-50">
-                Hapus Pasien?
-              </AlertDialogTitle>
-              <AlertDialogDescription className="text-slate-500 dark:text-slate-400">
-                Hapus pasien{" "}
-                <span className="font-medium text-slate-700 dark:text-slate-300">
-                  {patient.name}
-                </span>
-                ? Tindakan ini tidak bisa dibatalkan.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Batal</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white border-transparent"
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>2 · S — Subjective</h3>
+            <Field label="Keluhan (wajib)">
+              <textarea
+                className="input"
+                rows={3}
+                value={form.S.keluhan}
+                onChange={(e) => updateS("keluhan", e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Riwayat">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.S.riwayat || ""}
+                onChange={(e) => updateS("riwayat", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>3 · O — Objective</h3>
+            <div style={twoColStyle}>
+              <Field label="Tekanan darah (td.)">
+                <input
+                  className="input"
+                  value={form.O.tekanan_darah || ""}
+                  onChange={(e) => updateO("tekanan_darah", e.target.value)}
+                />
+              </Field>
+              <Field label="BB (kg)">
+                <input
+                  className="input"
+                  value={form.O.bb_kg || ""}
+                  onChange={(e) => updateO("bb_kg", e.target.value)}
+                />
+              </Field>
+              <Field label="tb (cm)">
+                <input
+                  className="input"
+                  value={form.O.tb_cm || ""}
+                  onChange={(e) => updateO("tb_cm", e.target.value)}
+                />
+              </Field>
+              <Field label="lila (cm)">
+                <input
+                  className="input"
+                  value={form.O.lila_cm || ""}
+                  onChange={(e) => updateO("lila_cm", e.target.value)}
+                />
+              </Field>
+              <Field label="Nadi">
+                <input
+                  className="input"
+                  value={form.O.nadi || ""}
+                  onChange={(e) => updateO("nadi", e.target.value)}
+                />
+              </Field>
+              <Field label="Suhu (°C)">
+                <input
+                  className="input"
+                  value={form.O.suhu_c || ""}
+                  onChange={(e) => updateO("suhu_c", e.target.value)}
+                />
+              </Field>
+              <Field label="Respirasi">
+                <input
+                  className="input"
+                  value={form.O.respirasi || ""}
+                  onChange={(e) => updateO("respirasi", e.target.value)}
+                />
+              </Field>
+            </div>
+            <Field label="Catatan">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.O.catatan || ""}
+                onChange={(e) => updateO("catatan", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>4 · A — Assessment</h3>
+            <Field label="Diagnosa (wajib)">
+              <textarea
+                className="input"
+                rows={2}
+                value={form.A.diagnosa}
+                onChange={(e) => updateA("diagnosa", e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+
+          <div className="glass" style={{ padding: 24 }}>
+            <h3 className="mono" style={sectionTitleStyle}>5 · P — Plan</h3>
+            <Field label="Tindakan (wajib)">
+              <textarea
+                className="input"
+                rows={4}
+                value={form.P.tindakan}
+                onChange={(e) => updateP("tindakan", e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Resep">
+              <input
+                className="input"
+                value={form.P.resep || ""}
+                onChange={(e) => updateP("resep", e.target.value)}
+              />
+            </Field>
+            <Field label="Jadwal Kontrol">
+              <input
+                className="input"
+                value={form.P.jadwal_kontrol || ""}
+                onChange={(e) => updateP("jadwal_kontrol", e.target.value)}
+              />
+            </Field>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: "color-mix(in oklab, var(--crit) 12%, transparent)",
+                color: "var(--crit-deep)",
+                fontSize: 13,
+                border: "1px solid color-mix(in oklab, var(--crit) 30%, transparent)",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              className="btn"
+              onClick={remove}
+              disabled={busy}
+              style={{
+                color: "var(--crit-deep)",
+                borderColor: "color-mix(in oklab, var(--crit) 40%, transparent)",
+              }}
+            >
+              Hapus pasien
+            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link href="/patients" className="btn" style={{ textDecoration: "none" }}>
+                Batal
+              </Link>
+              <Link
+                href="/safety-checker"
+                className="btn"
+                style={{ textDecoration: "none" }}
               >
-                Hapus
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                <NavIcon name="shield" /> Cek interaksi
+              </Link>
+              <button type="submit" className="btn btn-primary" disabled={busy}>
+                {busy ? "Menyimpan…" : "Simpan perubahan"}
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
-    </PageTransition>
+    </div>
+  );
+}
+
+const sectionTitleStyle: React.CSSProperties = {
+  fontSize: 11,
+  letterSpacing: "0.1em",
+  textTransform: "uppercase",
+  color: "var(--ink-3)",
+  marginBottom: 14,
+};
+
+const twoColStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gap: 12,
+  marginBottom: 12,
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
+      <span
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          color: "var(--ink-3)",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
+      {children}
+    </label>
   );
 }

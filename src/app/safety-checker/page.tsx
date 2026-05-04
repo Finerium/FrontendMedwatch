@@ -1,913 +1,777 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { PageTransition } from "@/components/layout/PageTransition";
-import { GlassCard } from "@/components/shared/GlassCard";
-import { AnimatedCounter } from "@/components/shared/AnimatedCounter";
-import { motion, AnimatePresence } from "framer-motion";
-import { drugs } from "@/data/drugs";
-import type { Drug } from "@/data/drugs";
-import { checkDrugSafety } from "@/lib/safety-checker";
-import type { SafetyResult } from "@/lib/safety-checker";
-import { useHydratedPatientStore } from "@/lib/use-hydrated-store";
-import {
-  ShieldCheck,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  X,
-  RotateCcw,
-  Search,
-  User,
-  ChevronDown,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { api, ApiError } from "@/lib/api";
+import { useAuthStore } from "@/lib/auth-store";
+import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
+import type { Patient } from "@/lib/patient-format";
+import { NavIcon } from "@/components/shell/NavIcon";
 
-/* ───── Helpers ───── */
+type SeverityWord = "aman" | "ringan" | "sedang" | "serius";
 
-function getScoreColor(score: number): string {
-  if (score >= 90) return "#22c55e";
-  if (score >= 70) return "#f59e0b";
-  if (score >= 40) return "#f59e0b";
-  return "#ef4444";
+type BackendInteraction = {
+  nama_efek: string;
+  obat_terkait: string[];
+  tingkat_tertinggi: string;
+};
+
+type BackendSafetyResult = {
+  drugs: Array<{
+    obat: { nama_obat: string; kategori: string };
+    skor_risiko: number;
+    label_risiko: string;
+    ringkasan_keparahan: { serius: number; sedang: number; ringan: number };
+    efek_dikenali: Array<{
+      nama_efek: string;
+      tingkat_keparahan: string;
+      rekomendasi: string;
+    }>;
+  }>;
+  interactions: BackendInteraction[];
+  severity_score: number;
+  severity_level: "low" | "medium" | "high";
+  warnings: string[];
+  obat_tidak_ditemukan: string[];
+  pasien_context: { id: string; nama: string; kategori?: string; diagnosa?: string } | null;
+};
+
+type ResultCard = {
+  kind: "pair" | "allergy" | "current";
+  a: string;
+  b?: string;
+  sev: SeverityWord;
+  reason: string;
+};
+
+const SEVERITY_ORDER: Record<SeverityWord, number> = {
+  serius: 0,
+  sedang: 1,
+  ringan: 2,
+  aman: 3,
+};
+
+function normalizeSeverity(raw: string): SeverityWord {
+  const v = (raw || "").toLowerCase();
+  if (v.startsWith("seri")) return "serius";
+  if (v.startsWith("sed")) return "sedang";
+  if (v.startsWith("rin")) return "ringan";
+  return "ringan";
 }
 
-function getScoreTailwindColor(score: number): string {
-  if (score >= 90) return "text-green-500";
-  if (score >= 70) return "text-amber-500";
-  if (score >= 40) return "text-amber-500";
-  return "text-red-500";
+function levelToOverall(level: "low" | "medium" | "high", hasResults: boolean): SeverityWord {
+  if (level === "high") return "serius";
+  if (level === "medium") return "sedang";
+  if (level === "low" && hasResults) return "ringan";
+  return "aman";
 }
 
-function getScoreLabel(score: number): string {
-  if (score >= 90) return "Aman";
-  if (score >= 70) return "Perhatian Ringan";
-  if (score >= 40) return "Perhatian Sedang";
-  return "Berbahaya";
-}
-
-const severityConfig = {
-  Severe: {
-    color: "text-red-500",
-    bullet: "bg-red-500",
-    label: "Berat",
+const OVERALL_STYLE: Record<SeverityWord, { color: string; bg: string; label: string; sub: string }> = {
+  aman: {
+    color: "var(--safe-deep)",
+    bg: "color-mix(in oklab, var(--safe) 15%, transparent)",
+    label: "AMAN",
+    sub: "Tidak ada interaksi terdeteksi",
   },
-  Moderate: {
-    color: "text-amber-500",
-    bullet: "bg-amber-500",
-    label: "Sedang",
+  ringan: {
+    color: "var(--safe-deep)",
+    bg: "color-mix(in oklab, var(--safe) 18%, transparent)",
+    label: "PERHATIAN RINGAN",
+    sub: "Interaksi minor; pantau sendiri",
   },
-  Mild: {
-    color: "text-green-500",
-    bullet: "bg-green-500",
-    label: "Ringan",
+  sedang: {
+    color: "var(--warn-deep)",
+    bg: "color-mix(in oklab, var(--warn) 22%, transparent)",
+    label: "PERHATIAN SEDANG",
+    sub: "Sesuaikan dosis atau pantau ketat",
   },
-} as const;
-
-const interactionBadgeColor: Record<string, string> = {
-  Major: "bg-red-500/10 text-red-500 border-red-500/20",
-  Moderate: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  Minor: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  serius: {
+    color: "var(--crit-deep)",
+    bg: "color-mix(in oklab, var(--crit) 18%, transparent)",
+    label: "BAHAYA SERIUS",
+    sub: "Hindari kombinasi atau ganti obat",
+  },
 };
 
-/* ───── Severity styling for SafetyResult cards ───── */
+export default function SafetyCheckerPage() {
+  const user = useAuthStore((s) => s.user);
+  const hydrated = useAuthStore((s) => s.hydrated);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const isMasyarakat = user?.role === "masyarakat";
 
-const resultSeverityStyles: Record<SafetyResult["severity"], string> = {
-  safe: "border-green-500/30 bg-green-500/5",
-  caution: "border-yellow-500/30 bg-yellow-500/5",
-  warning: "border-orange-500/30 bg-orange-500/5",
-  danger: "border-red-500/30 bg-red-500/5",
-};
+  const [drugDb, setDrugDb] = useState<DisplayDrug[]>([]);
+  const [drugsLoaded, setDrugsLoaded] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patientsLoaded, setPatientsLoaded] = useState(false);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [drugs, setDrugs] = useState<string[]>([]);
+  const [drugQuery, setDrugQuery] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanned, setScanned] = useState(false);
+  const [result, setResult] = useState<BackendSafetyResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
-const resultSeverityBadge: Record<SafetyResult["severity"], string> = {
-  safe: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
-  caution: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20",
-  warning: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
-  danger: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
-};
+  useEffect(() => {
+    if (!hydrated) fetchMe();
+  }, [hydrated, fetchMe]);
 
-const resultSeverityLabel: Record<SafetyResult["severity"], string> = {
-  safe: "Aman",
-  caution: "Perhatian",
-  warning: "Peringatan",
-  danger: "Berbahaya",
-};
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<BackendDrug[]>("/api/drugs");
+        if (cancelled) return;
+        setDrugDb((data || []).map((d, i) => backendToDisplayDrug(d, i)));
+      } catch {
+        if (!cancelled) setDrugDb([]);
+      } finally {
+        if (!cancelled) setDrugsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-/* ───── SVG Safety Gauge ───── */
+  useEffect(() => {
+    if (!hydrated) return;
+    if (isMasyarakat) {
+      setPatients([]);
+      setPatientsLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.get<Patient[]>("/api/patients");
+        if (!cancelled) setPatients(data || []);
+      } catch {
+        if (!cancelled) setPatients([]);
+      } finally {
+        if (!cancelled) setPatientsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, isMasyarakat]);
 
-interface SafetyGaugeProps {
-  score: number;
-}
+  const drugLookup = useMemo(
+    () => Object.fromEntries(drugDb.map((d) => [d.name.toLowerCase(), d])),
+    [drugDb],
+  );
 
-function SafetyGauge({ score }: SafetyGaugeProps) {
-  const radius = 60;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-  const color = getScoreColor(score);
-  const tailwindColor = getScoreTailwindColor(score);
+  const drugSuggestions = useMemo(() => {
+    if (!drugQuery) return [];
+    const q = drugQuery.toLowerCase();
+    return drugDb
+      .filter(
+        (d) =>
+          !drugs.includes(d.name) &&
+          (d.name.toLowerCase().includes(q) || d.generic.toLowerCase().includes(q)),
+      )
+      .slice(0, 6);
+  }, [drugQuery, drugs, drugDb]);
+
+  const cards: ResultCard[] = useMemo(() => {
+    if (!result) return [];
+    const out: ResultCard[] = [];
+    for (const it of result.interactions || []) {
+      const a = it.obat_terkait[0] || "obat";
+      const b = it.obat_terkait[1];
+      out.push({
+        kind: "pair",
+        a,
+        b,
+        sev: normalizeSeverity(it.tingkat_tertinggi),
+        reason: it.nama_efek,
+      });
+    }
+    for (const drug of result.drugs || []) {
+      for (const ef of drug.efek_dikenali || []) {
+        out.push({
+          kind: "current",
+          a: drug.obat.nama_obat,
+          sev: normalizeSeverity(ef.tingkat_keparahan),
+          reason: `${ef.nama_efek}. ${ef.rekomendasi}`.trim(),
+        });
+      }
+    }
+    out.sort((x, y) => SEVERITY_ORDER[x.sev] - SEVERITY_ORDER[y.sev]);
+    return out;
+  }, [result]);
+
+  const counts: Record<string, number> = cards.reduce<Record<string, number>>((acc, r) => {
+    acc[r.sev] = (acc[r.sev] || 0) + 1;
+    return acc;
+  }, {});
+  const overall: SeverityWord = result
+    ? levelToOverall(result.severity_level, cards.length > 0)
+    : "aman";
+  const overallStyle = OVERALL_STYLE[overall];
+
+  const canScan = isMasyarakat ? drugs.length >= 1 : Boolean(patient) && drugs.length >= 1;
+
+  const runScan = async () => {
+    if (!canScan) return;
+    setScanning(true);
+    setScanError(null);
+    setScanned(false);
+    try {
+      const payload: { drugs: string[]; pasien_id?: string } = { drugs };
+      if (patient) payload.pasien_id = patient.id;
+      const data = await api.post<BackendSafetyResult>("/api/safety/check", payload);
+      setResult(data);
+      setScanned(true);
+    } catch (e) {
+      setScanError(e instanceof ApiError ? e.message : "Gagal memindai keamanan");
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const addDrug = (name: string) => {
+    setDrugs([...drugs, name]);
+    setDrugQuery("");
+    setScanned(false);
+    setResult(null);
+  };
+
+  const removeDrug = (name: string) => {
+    setDrugs(drugs.filter((d) => d !== name));
+    setScanned(false);
+    setResult(null);
+  };
+
+  const subtitleCopy = isMasyarakat
+    ? "Self-check engine · cocokkan obat dengan riwayat alergi pribadi"
+    : "Severity engine · cross-reference 1.4M interaksi";
+  const headingItalic = isMasyarakat ? "obat-obat" : "keamanan";
+  const headingPrefix = isMasyarakat ? "Cek " : "Cek ";
+  const headingSuffix = isMasyarakat ? " saya." : " kombinasi.";
 
   return (
     <div
-      className="flex flex-col items-center"
-      role="img"
-      aria-label={`Skor keamanan: ${score} dari 100, status: ${getScoreLabel(score)}`}
+      className="page-in"
+      style={{ padding: "120px 24px 80px", position: "relative", maxWidth: 1440, margin: "0 auto" }}
     >
-      <svg width="160" height="160" viewBox="0 0 160 160" className="-rotate-90" aria-hidden="true">
-        {/* Background circle */}
-        <circle
-          cx="80"
-          cy="80"
-          r={radius}
-          fill="none"
-          stroke="currentColor"
-          className="text-slate-200 dark:text-white/[0.08]"
-          strokeWidth="10"
-        />
-        {/* Foreground animated circle -- hex color required for SVG stroke */}
-        <motion.circle
-          cx="80"
-          cy="80"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          initial={{ strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset }}
-          transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
-        />
-      </svg>
-      {/* Center content overlaid */}
-      <div className="flex flex-col items-center -mt-[116px] mb-[40px]" aria-hidden="true">
-        <AnimatedCounter
-          value={score}
-          duration={1200}
-          className="text-4xl font-bold font-mono text-slate-900 dark:text-slate-50"
-        />
-        <span className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Skor Keamanan
-        </span>
+      <div
+        style={{
+          position: "absolute",
+          top: 80,
+          left: -80,
+          width: 280,
+          height: 280,
+          borderRadius: "50%",
+          background: "var(--ink)",
+          opacity: 0.92,
+          zIndex: 0,
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          top: 140,
+          right: -60,
+          width: 200,
+          height: 200,
+          background: "var(--teal)",
+          opacity: 0.85,
+          zIndex: 0,
+          clipPath: "polygon(50% 0, 100% 50%, 50% 100%, 0 50%)",
+        }}
+      />
+
+      <div className="stagger" style={{ position: "relative", zIndex: 2 }}>
         <span
-          className={`text-sm font-semibold mt-1 ${tailwindColor}`}
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.1em",
+            color: "var(--ink-3)",
+            textTransform: "uppercase",
+          }}
         >
-          {getScoreLabel(score)}
+          {subtitleCopy}
         </span>
-      </div>
-    </div>
-  );
-}
+        <h1
+          className="serif"
+          style={{
+            fontSize: "clamp(2.6rem, 5.5vw, 4.4rem)",
+            fontWeight: 300,
+            letterSpacing: "-0.03em",
+            marginTop: 8,
+            marginBottom: 28,
+          }}
+        >
+          {headingPrefix}<em style={{ fontStyle: "italic" }}>{headingItalic}</em>{headingSuffix}
+        </h1>
 
-/* ───── Safety Score from SafetyResults ───── */
-
-function calculateSafetyScoreFromResults(results: SafetyResult[]): number {
-  let score = 100;
-  for (const r of results) {
-    if (r.severity === "danger") score -= 30;
-    else if (r.severity === "warning") score -= 15;
-    else if (r.severity === "caution") score -= 8;
-    if (r.recallStatus === "recalled") score -= 10;
-    for (const interaction of r.interactions) {
-      if (interaction.severity === "Major") score -= 5;
-      else if (interaction.severity === "Moderate") score -= 3;
-    }
-  }
-  return Math.max(0, Math.min(100, score));
-}
-
-/* ───── Stagger Variants ───── */
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.3, ease: "easeOut" as const },
-  },
-};
-
-/* ───── Tab Type ───── */
-
-type Tab = "manual" | "patient";
-
-/* ───── Result Cards Component ───── */
-
-function SafetyResultCards({ results }: { results: SafetyResult[] }) {
-  const score = calculateSafetyScoreFromResults(results);
-
-  return (
-    <motion.div
-      key="results"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3 }}
-      className="space-y-6"
-    >
-      {/* Safety Score Gauge */}
-      <GlassCard className="flex justify-center py-8">
-        <SafetyGauge score={score} />
-      </GlassCard>
-
-      {/* Per-drug result cards */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="space-y-4"
-      >
-        {results.map((result, index) => (
-          <motion.div key={`${result.drugName}-${index}`} variants={itemVariants}>
-            <div
-              className={`rounded-2xl border p-5 backdrop-blur-sm ${resultSeverityStyles[result.severity]}`}
-            >
-              {/* Header: drug name + severity badge */}
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
-                  {result.drugName}
-                </h3>
-                <span
-                  className={`text-xs font-medium px-2.5 py-1 rounded-full border flex-shrink-0 ${resultSeverityBadge[result.severity]}`}
+        <div className="sc-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 18 }}>
+          <div className="glass" style={{ padding: 24 }}>
+            {!isMasyarakat && (
+              <>
+                <h3
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-3)",
+                    marginBottom: 12,
+                  }}
                 >
-                  {resultSeverityLabel[result.severity]}
-                </span>
-              </div>
-
-              {/* Recall status */}
-              {result.recallStatus === "recalled" && (
-                <div className="flex items-center gap-2 mb-3 text-sm text-red-600 dark:text-red-400">
-                  <XCircle className="w-4 h-4 flex-shrink-0" />
-                  <span className="font-medium">Ditarik dari peredaran</span>
-                </div>
-              )}
-
-              {/* Side effects */}
-              {result.sideEffects.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                    Efek Samping
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {result.sideEffects.slice(0, 6).map((se) => {
-                      const sev = se.severity as keyof typeof severityConfig;
-                      const config = severityConfig[sev] ?? severityConfig.Mild;
-                      return (
-                        <span
-                          key={se.name}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-white/40 dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] text-slate-700 dark:text-slate-300"
-                        >
-                          <span
-                            className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.bullet}`}
+                  1 · Pilih pasien
+                </h3>
+                {!patient ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 24, minHeight: 232 }}>
+                    {!patientsLoaded
+                      ? Array.from({ length: 4 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="skel"
+                            style={{ height: 52, borderRadius: 14 }}
+                            aria-hidden
                           />
-                          {se.name}
-                          <span className="text-slate-400 dark:text-slate-500 font-mono">
-                            {se.frequencyPercent}%
-                          </span>
-                        </span>
-                      );
-                    })}
-                    {result.sideEffects.length > 6 && (
-                      <span className="text-xs text-slate-400 dark:text-slate-500 self-center">
-                        +{result.sideEffects.length - 6} lainnya
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Interactions */}
-              {result.interactions.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                    Interaksi
-                  </p>
-                  <div className="space-y-1.5">
-                    {result.interactions.map((interaction, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300"
-                      >
-                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-500" />
-                        <div>
-                          <span className="font-medium">{interaction.withDrug}</span>
-                          <span className="text-slate-500 dark:text-slate-400">
-                            {" "}&mdash; {interaction.description}
-                          </span>
-                          <span
-                            className={`ml-2 text-xs px-1.5 py-0.5 rounded border font-medium ${
-                              interactionBadgeColor[interaction.severity] ??
-                              "bg-slate-500/10 text-slate-500 border-slate-500/20"
-                            }`}
-                          >
-                            {interaction.severity}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommendation */}
-              <div className="pt-2 border-t border-black/[0.04] dark:border-white/[0.06]">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  <span className="font-medium text-slate-700 dark:text-slate-300">Rekomendasi:</span>{" "}
-                  {result.recommendation}
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-    </motion.div>
-  );
-}
-
-/* ───── Main Component ───── */
-
-export default function SafetyCheckerPage() {
-  const [activeTab, setActiveTab] = useState<Tab>("manual");
-
-  // Manual tab state
-  const [query, setQuery] = useState("");
-  const [selectedDrugs, setSelectedDrugs] = useState<Drug[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [hasChecked, setHasChecked] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [manualResults, setManualResults] = useState<SafetyResult[]>([]);
-
-  // Patient tab state
-  const { patients, hydrated } = useHydratedPatientStore();
-  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
-  const [patientResults, setPatientResults] = useState<SafetyResult[]>([]);
-  const [isCheckingPatient, setIsCheckingPatient] = useState(false);
-  const [hasCheckedPatient, setHasCheckedPatient] = useState(false);
-
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const selectedIds = useMemo(
-    () => selectedDrugs.map((d) => d.id),
-    [selectedDrugs]
-  );
-
-  const filteredDrugs = useMemo(() => {
-    if (!query.trim()) return [];
-    const q = query.toLowerCase();
-    return drugs
-      .filter(
-        (d) =>
-          !selectedIds.includes(d.id) &&
-          (d.name.toLowerCase().includes(q) ||
-            d.genericName.toLowerCase().includes(q))
-      )
-      .slice(0, 6);
-  }, [query, selectedIds]);
-
-  const selectedPatient = useMemo(
-    () => patients.find((p) => p.id === selectedPatientId),
-    [patients, selectedPatientId]
-  );
-
-  // Close dropdown on click outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Auto-check when patient is selected
-  useEffect(() => {
-    if (!selectedPatientId || !selectedPatient) {
-      const t = setTimeout(() => { setPatientResults([]); setHasCheckedPatient(false); }, 0);
-      return () => clearTimeout(t);
-    }
-
-    if (selectedPatient.prescribedDrugs.length === 0) {
-      const t = setTimeout(() => { setPatientResults([]); setHasCheckedPatient(true); }, 0);
-      return () => clearTimeout(t);
-    }
-
-    const startTimer = setTimeout(() => setIsCheckingPatient(true), 0);
-    const timer = setTimeout(() => {
-      const results = checkDrugSafety(selectedPatient.prescribedDrugs);
-      setPatientResults(results);
-      setHasCheckedPatient(true);
-      setIsCheckingPatient(false);
-    }, 600);
-
-    return () => { clearTimeout(startTimer); clearTimeout(timer); };
-  }, [selectedPatientId, selectedPatient]);
-
-  const handleSelect = useCallback(
-    (drug: Drug) => {
-      if (selectedDrugs.length >= 5) return;
-      setSelectedDrugs((prev) => [...prev, drug]);
-      setQuery("");
-      setShowDropdown(false);
-      setHighlightedIndex(-1);
-      setHasChecked(false);
-      setManualResults([]);
-      inputRef.current?.focus();
-    },
-    [selectedDrugs.length]
-  );
-
-  const handleRemoveDrug = useCallback((drugId: string) => {
-    setSelectedDrugs((prev) => prev.filter((d) => d.id !== drugId));
-    setHasChecked(false);
-    setManualResults([]);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setSelectedDrugs([]);
-    setQuery("");
-    setHasChecked(false);
-    setManualResults([]);
-    setShowDropdown(false);
-    setHighlightedIndex(-1);
-    inputRef.current?.focus();
-  }, []);
-
-  const handleCheck = useCallback(() => {
-    if (selectedDrugs.length === 0) return;
-    setIsChecking(true);
-    // Simulate checking delay for visual polish
-    setTimeout(() => {
-      const drugNames = selectedDrugs.map((d) => d.name);
-      const results = checkDrugSafety(drugNames);
-      setManualResults(results);
-      setIsChecking(false);
-      setHasChecked(true);
-    }, 800);
-  }, [selectedDrugs]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!showDropdown || !filteredDrugs.length) return;
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setHighlightedIndex((prev) =>
-          prev < filteredDrugs.length - 1 ? prev + 1 : 0
-        );
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setHighlightedIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredDrugs.length - 1
-        );
-      } else if (e.key === "Enter" && highlightedIndex >= 0) {
-        e.preventDefault();
-        handleSelect(filteredDrugs[highlightedIndex]);
-      } else if (e.key === "Escape") {
-        setShowDropdown(false);
-        setHighlightedIndex(-1);
-      }
-    },
-    [showDropdown, filteredDrugs, highlightedIndex, handleSelect]
-  );
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setQuery(val);
-    setShowDropdown(val.trim().length > 0);
-    setHighlightedIndex(-1);
-  };
-
-  return (
-    <PageTransition>
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
-            Safety Checker
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Periksa keamanan obat dan potensi interaksi
-          </p>
-        </div>
-
-        {/* Tab Switcher */}
-        <div className="inline-flex items-center p-1 rounded-xl bg-white/50 dark:bg-white/[0.04] backdrop-blur-lg border border-black/[0.06] dark:border-white/[0.08]">
-          <button
-            onClick={() => setActiveTab("manual")}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "manual"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Cek Manual
-          </button>
-          <button
-            onClick={() => setActiveTab("patient")}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              activeTab === "patient"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/25"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
-            }`}
-          >
-            Cek Pasien
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === "manual" ? (
-            <motion.div
-              key="tab-manual"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-8"
-            >
-              {/* Input Section */}
-              <GlassCard>
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                      Cek Manual
-                    </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      Pilih obat secara manual untuk diperiksa keamanannya
-                    </p>
-                  </div>
-
-                  {/* Autocomplete Input */}
-                  <div className="relative">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input
-                        ref={inputRef}
-                        type="text"
-                        value={query}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        onFocus={() => {
-                          if (query.trim()) setShowDropdown(true);
-                        }}
-                        placeholder="Masukkan nama obat..."
-                        aria-label="Cari nama obat untuk diperiksa keamanannya"
-                        disabled={selectedDrugs.length >= 5}
-                        className="w-full pl-12 pr-10 py-3 bg-white/50 dark:bg-white/[0.03] backdrop-blur-lg border border-black/[0.06] dark:border-white/[0.08] rounded-xl text-slate-900 dark:text-slate-50 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      {query && (
-                        <button
-                          onClick={() => {
-                            setQuery("");
-                            setShowDropdown(false);
-                            inputRef.current?.focus();
-                          }}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                        >
-                          <X className="w-5 h-5" />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Autocomplete Dropdown */}
-                    <AnimatePresence>
-                      {showDropdown && query.trim() && (
-                        <motion.div
-                          ref={dropdownRef}
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute z-50 w-full mt-2 bg-white/80 dark:bg-slate-900/90 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] rounded-2xl shadow-2xl dark:shadow-[0_16px_48px_0_rgba(0,0,0,0.5)] overflow-hidden"
-                        >
-                          {filteredDrugs.length > 0 ? (
-                            filteredDrugs.map((drug, index) => (
-                              <button
-                                key={drug.id}
-                                onClick={() => handleSelect(drug)}
-                                onMouseEnter={() => setHighlightedIndex(index)}
-                                className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors ${
-                                  index === highlightedIndex
-                                    ? "bg-blue-500/10 dark:bg-blue-500/10"
-                                    : "hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
-                                }`}
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <span className="font-medium text-slate-900 dark:text-slate-50">
-                                    {drug.name}
-                                  </span>
-                                  <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">
-                                    {drug.genericName}
-                                  </span>
-                                </div>
-                                <span className="text-xs px-2.5 py-1 rounded-full border text-slate-500 dark:text-slate-400 border-black/[0.06] dark:border-white/[0.08]">
-                                  {drug.category}
-                                </span>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="px-5 py-4 text-sm text-slate-500 dark:text-slate-400">
-                              Tidak ada obat yang cocok untuk &quot;{query}&quot;
-                            </div>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* Selected Drug Pills */}
-                  {selectedDrugs.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      <AnimatePresence>
-                        {selectedDrugs.map((drug) => (
-                          <motion.span
-                            key={drug.id}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.2 }}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium bg-white/50 dark:bg-white/[0.03] backdrop-blur-lg border border-black/[0.06] dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
-                          >
-                            {drug.name}
-                            <button
-                              onClick={() => handleRemoveDrug(drug.id)}
-                              className="ml-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                        ))
+                      : patients.length === 0
+                        ? (
+                            <div
+                              className="glass-thin"
+                              style={{ padding: 16, fontSize: 13, color: "var(--ink-3)" }}
                             >
-                              <X className="w-3.5 h-3.5" />
+                              Tidak ada pasien terdaftar.
+                            </div>
+                          )
+                        : patients.slice(0, 4).map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => setPatient(p)}
+                              className="lift"
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "52px 1fr auto",
+                                gap: 12,
+                                alignItems: "center",
+                                padding: 12,
+                                borderRadius: 14,
+                                border: "1px solid var(--line)",
+                                background: "var(--bg-2)",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                            >
+                              <span
+                                className="mono"
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--teal-deep)",
+                                  fontWeight: 600,
+                                  background: "var(--teal-soft)",
+                                  padding: "6px 8px",
+                                  borderRadius: 8,
+                                  textAlign: "center",
+                                }}
+                              >
+                                {p.id}
+                              </span>
+                              <div>
+                                <div style={{ fontSize: 14, fontWeight: 500 }}>{p.nama}</div>
+                                <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                                  {p.umur || "-"} thn · {p.kategori || p.A?.diagnosa || "—"}
+                                </div>
+                              </div>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                                <path d="m9 6 6 6-6 6" />
+                              </svg>
                             </button>
-                          </motion.span>
-                        ))}
-                      </AnimatePresence>
-                      {selectedDrugs.length >= 5 && (
-                        <span className="text-xs text-slate-400 dark:text-slate-500 self-center ml-1">
-                          Maks. 5 obat
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      onClick={handleCheck}
-                      disabled={selectedDrugs.length === 0 || isChecking}
-                      aria-label="Periksa keamanan obat yang dipilih"
-                      className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white font-medium rounded-xl shadow-lg shadow-blue-600/25 hover:shadow-xl hover:shadow-blue-600/30 transition-all duration-200 text-sm"
-                    >
-                      {isChecking ? (
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        >
-                          <ShieldCheck className="w-4 h-4" />
-                        </motion.div>
-                      ) : (
-                        <ShieldCheck className="w-4 h-4" />
-                      )}
-                      {isChecking ? "Memeriksa..." : "Periksa Keamanan"}
-                    </button>
-                    {selectedDrugs.length > 0 && (
-                      <button
-                        onClick={handleReset}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-medium rounded-xl transition-colors duration-200 text-sm"
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Reset
-                      </button>
-                    )}
+                          ))}
                   </div>
-                </div>
-              </GlassCard>
-
-              {/* Results or Empty State */}
-              <AnimatePresence mode="wait">
-                {hasChecked && manualResults.length > 0 ? (
-                  <SafetyResultCards results={manualResults} />
                 ) : (
-                  <motion.div
-                    key="empty-state-manual"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center justify-center py-20"
+                  <div
+                    className="glass-thin"
+                    style={{
+                      padding: 16,
+                      marginBottom: 24,
+                      display: "grid",
+                      gridTemplateColumns: "1fr auto",
+                      gap: 12,
+                    }}
                   >
-                    <motion.div
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 3,
-                        ease: "easeInOut",
+                    <div>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                        <span className="mono" style={{ fontSize: 12, color: "var(--teal-deep)", fontWeight: 600 }}>
+                          {patient.id}
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{patient.nama}</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                        {patient.umur || "-"} tahun
+                        {patient.kategori ? ` · ${patient.kategori}` : ""}
+                        {patient.A?.diagnosa ? ` · ${patient.A.diagnosa}` : ""}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => {
+                        setPatient(null);
+                        setScanned(false);
+                        setResult(null);
+                      }}
+                      style={{ alignSelf: "flex-start", padding: 6 }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                        <path d="m6 6 12 12M18 6 6 18" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            <h3
+              className="mono"
+              style={{
+                fontSize: 11,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+                marginBottom: 12,
+              }}
+            >
+              {isMasyarakat ? "1 · Tambah obat yang Anda konsumsi" : "2 · Tambah obat untuk diskrining"}
+            </h3>
+            <div style={{ position: "relative" }}>
+              <input
+                value={drugQuery}
+                onChange={(e) => setDrugQuery(e.target.value)}
+                placeholder="paracetamol, amoxicillin…"
+                className="input"
+                style={{ marginBottom: 8 }}
+              />
+              {drugSuggestions.length > 0 && (
+                <div
+                  className="glass"
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    zIndex: 10,
+                    padding: 6,
+                    marginTop: 4,
+                  }}
+                >
+                  {drugSuggestions.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => addDrug(d.name)}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        color: "var(--ink)",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-2)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <span>
+                        <strong>{d.name}</strong>{" "}
+                        <span style={{ color: "var(--ink-3)", fontSize: 12 }}>· {d.class}</span>
+                      </span>
+                      <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
+                        + tambah
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, minHeight: 28 }}>
+              {drugs.map((name) => (
+                <span
+                  key={name}
+                  className="chip"
+                  style={{ background: "var(--ink)", color: "var(--bg)", borderColor: "var(--ink)" }}
+                >
+                  {drugLookup[name.toLowerCase()]?.name || name}
+                  <button
+                    onClick={() => removeDrug(name)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "inherit",
+                      cursor: "pointer",
+                      marginLeft: 4,
+                      opacity: 0.7,
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {drugs.length === 0 && (
+                <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                  {!drugsLoaded ? "Memuat katalog obat…" : "Belum ada obat ditambahkan."}
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={runScan}
+              disabled={!canScan || scanning}
+              className="btn btn-primary"
+              style={{
+                marginTop: 24,
+                width: "100%",
+                justifyContent: "center",
+                padding: "16px 22px",
+                opacity: !canScan ? 0.5 : 1,
+              }}
+            >
+              {scanning ? (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" opacity="0.3" />
+                    <path d="M12 2 a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="2" fill="none">
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 12 12"
+                        to="360 12 12"
+                        dur="0.8s"
+                        repeatCount="indefinite"
+                      />
+                    </path>
+                  </svg>
+                  Memindai 1.4M interaksi…
+                </>
+              ) : (
+                <>
+                  <NavIcon name="shield" />
+                  Pindai keamanan
+                </>
+              )}
+            </button>
+
+            {scanError && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "color-mix(in oklab, var(--crit) 12%, transparent)",
+                  color: "var(--crit-deep)",
+                  fontSize: 13,
+                  border: "1px solid color-mix(in oklab, var(--crit) 30%, transparent)",
+                }}
+              >
+                {scanError}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 18, minHeight: 360 }}>
+            {scanned ? (
+              <>
+                <div className="glass" style={{ padding: 28, position: "relative", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: -40,
+                      right: -40,
+                      width: 200,
+                      height: 200,
+                      borderRadius: "50%",
+                      background: overallStyle.bg,
+                      zIndex: 0,
+                    }}
+                  />
+                  <div style={{ position: "relative", zIndex: 2 }}>
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: 11,
+                        letterSpacing: "0.1em",
+                        color: "var(--ink-3)",
                       }}
                     >
-                      <ShieldCheck className="w-20 h-20 text-slate-300 dark:text-slate-600" />
-                    </motion.div>
-                    <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mt-6 text-center">
-                      Masukkan obat untuk memeriksa keamanan
-                    </p>
-                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 text-center max-w-md">
-                      Safety Checker akan memeriksa status recall, efek samping, dan
-                      interaksi antar obat
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="tab-patient"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="space-y-8"
-            >
-              {/* Patient Selection */}
-              <GlassCard>
-                <div className="space-y-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
-                      Cek Pasien
+                      VERDIKT
+                    </span>
+                    <h2
+                      className="serif"
+                      style={{
+                        fontSize: "3rem",
+                        fontWeight: 300,
+                        letterSpacing: "-0.03em",
+                        marginTop: 8,
+                        color: overallStyle.color,
+                      }}
+                    >
+                      {overallStyle.label}
                     </h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      Pilih pasien untuk memeriksa keamanan obat yang diresepkan
+                    <p style={{ marginTop: 8, color: "var(--ink-2)", fontSize: 15 }}>
+                      {overallStyle.sub}
                     </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 18, flexWrap: "wrap" }}>
+                      {(["serius", "sedang", "ringan"] as const).map(
+                        (s) =>
+                          counts[s] > 0 && (
+                            <span key={s} className={`sev sev-${s}`}>
+                              <span className="sev-dot" />
+                              {counts[s]} {s}
+                            </span>
+                          ),
+                      )}
+                      {cards.length === 0 && (
+                        <span className="sev sev-ringan">
+                          <span className="sev-dot" />0 interaksi
+                        </span>
+                      )}
+                    </div>
                   </div>
-
-                  {/* Patient Dropdown */}
-                  {!hydrated ? (
-                    // Skeleton loader while store is hydrating
-                    <div className="space-y-3">
-                      <div className="h-12 rounded-xl bg-slate-200/50 dark:bg-white/[0.04] animate-pulse" />
-                      <div className="h-24 rounded-xl bg-slate-200/50 dark:bg-white/[0.04] animate-pulse" />
-                    </div>
-                  ) : (
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none z-10" />
-                      <select
-                        value={selectedPatientId}
-                        onChange={(e) => setSelectedPatientId(e.target.value)}
-                        aria-label="Pilih pasien"
-                        className="w-full appearance-none pl-12 pr-10 py-3 bg-white/50 dark:bg-white/[0.03] backdrop-blur-lg border border-black/[0.06] dark:border-white/[0.08] rounded-xl text-slate-900 dark:text-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all text-base cursor-pointer"
-                      >
-                        <option value="" className="dark:bg-slate-900">Pilih pasien...</option>
-                        {patients.map((patient) => (
-                          <option key={patient.id} value={patient.id} className="dark:bg-slate-900">
-                            {patient.name} ({patient.age} th) - {patient.diagnosis}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-                    </div>
-                  )}
                 </div>
-              </GlassCard>
 
-              {/* Patient Info Card */}
-              <AnimatePresence mode="wait">
-                {selectedPatient && (
-                  <motion.div
-                    key={`patient-info-${selectedPatient.id}`}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.25 }}
-                  >
-                    <GlassCard variant="subtle">
-                      <div className="flex items-start gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                          <User className="w-5 h-5 text-blue-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-50">
-                            {selectedPatient.name}
-                          </h3>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-                            <span className="text-sm text-slate-500 dark:text-slate-400">
-                              {selectedPatient.age} tahun
-                            </span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400">
-                              {selectedPatient.gender}
-                            </span>
-                            <span className="text-sm text-slate-500 dark:text-slate-400">
-                              {selectedPatient.diagnosis}
+                {cards.length > 0 && (
+                  <div className="glass" style={{ padding: 4 }}>
+                    {cards.map((r, i) => {
+                      const sevStyle =
+                        r.sev === "serius"
+                          ? {
+                              border: "2px solid color-mix(in oklab, var(--crit) 50%, transparent)",
+                            }
+                          : r.sev === "sedang"
+                            ? {
+                                border:
+                                  "1px solid color-mix(in oklab, var(--warn) 40%, transparent)",
+                              }
+                            : { border: "1px solid var(--line)" };
+                      const aName = drugLookup[r.a.toLowerCase()]?.name || r.a;
+                      const bName = r.b
+                        ? drugLookup[r.b.toLowerCase()]?.name || r.b
+                        : null;
+                      return (
+                        <div
+                          key={i}
+                          className="lift"
+                          style={{
+                            padding: 18,
+                            margin: 6,
+                            borderRadius: 14,
+                            background: "var(--bg-2)",
+                            ...sevStyle,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              gap: 14,
+                              marginBottom: 8,
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, fontSize: 15 }}>{aName}</span>
+                              {bName && (
+                                <>
+                                  <span style={{ color: "var(--ink-3)" }}>×</span>
+                                  <span style={{ fontWeight: 600, fontSize: 15 }}>{bName}</span>
+                                </>
+                              )}
+                              {r.kind === "allergy" && (
+                                <span className="chip" style={{ borderColor: "var(--crit)" }}>
+                                  ALERGI
+                                </span>
+                              )}
+                              {r.kind === "current" && <span className="chip">vs obat aktif</span>}
+                            </div>
+                            <span className={`sev sev-${r.sev}`}>
+                              <span className="sev-dot" />
+                              {r.sev}
                             </span>
                           </div>
-                          {selectedPatient.prescribedDrugs.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {selectedPatient.prescribedDrugs.map((drug) => (
-                                <span
-                                  key={drug}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-                                >
-                                  {drug}
-                                </span>
-                              ))}
-                            </div>
-                          )}
+                          <p
+                            style={{
+                              fontSize: 14,
+                              color: "var(--ink-2)",
+                              lineHeight: 1.55,
+                              marginTop: 6,
+                            }}
+                          >
+                            {r.reason}
+                          </p>
                         </div>
-                      </div>
-                    </GlassCard>
-                  </motion.div>
+                      );
+                    })}
+                  </div>
                 )}
-              </AnimatePresence>
-
-              {/* Checking indicator */}
-              <AnimatePresence mode="wait">
-                {isCheckingPatient && (
-                  <motion.div
-                    key="checking-patient"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="flex flex-col items-center justify-center py-16"
-                  >
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-                    >
-                      <ShieldCheck className="w-12 h-12 text-blue-500" />
-                    </motion.div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-4">
-                      Memeriksa keamanan obat pasien...
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Patient Results */}
-                {!isCheckingPatient && hasCheckedPatient && patientResults.length > 0 && (
-                  <SafetyResultCards results={patientResults} />
-                )}
-
-                {/* Patient has no drugs */}
-                {!isCheckingPatient && hasCheckedPatient && selectedPatient && patientResults.length === 0 && (
-                  <motion.div
-                    key="no-drugs-patient"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center justify-center py-16"
-                  >
-                    <CheckCircle className="w-16 h-16 text-slate-300 dark:text-slate-600" />
-                    <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mt-4 text-center">
-                      Tidak ada obat yang diresepkan
-                    </p>
-                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 text-center">
-                      Pasien ini belum memiliki obat yang perlu diperiksa
-                    </p>
-                  </motion.div>
-                )}
-
-                {/* Empty State: no patient selected */}
-                {!isCheckingPatient && !selectedPatientId && (
-                  <motion.div
-                    key="empty-state-patient"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.3 }}
-                    className="flex flex-col items-center justify-center py-20"
-                  >
-                    <motion.div
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 3,
-                        ease: "easeInOut",
-                      }}
-                    >
-                      <User className="w-20 h-20 text-slate-300 dark:text-slate-600" />
-                    </motion.div>
-                    <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mt-6 text-center">
-                      Pilih pasien untuk memeriksa keamanan
-                    </p>
-                    <p className="text-sm text-slate-400 dark:text-slate-500 mt-2 text-center max-w-md">
-                      Obat yang diresepkan pada pasien akan diperiksa secara otomatis
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              </>
+            ) : (
+              <div
+                className="glass"
+                style={{
+                  padding: 60,
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 18,
+                  minHeight: 360,
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: "50%",
+                    background: "var(--bg-2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px dashed var(--line)",
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="1.2">
+                    <path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="serif" style={{ fontSize: "1.5rem", fontWeight: 400 }}>
+                    Menunggu pemindaian
+                  </h3>
+                  <p style={{ color: "var(--ink-3)", marginTop: 8, maxWidth: 360 }}>
+                    {isMasyarakat
+                      ? "Tambahkan obat yang Anda konsumsi. Sistem akan cocokkan dengan database interaksi BPOM."
+                      : "Pilih pasien dan tambahkan obat. Sistem akan cross-reference terhadap riwayat alergi, obat aktif, dan database interaksi BPOM."}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </PageTransition>
+
+      <style>{`
+        @media (max-width: 1080px) {
+          .sc-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
   );
 }

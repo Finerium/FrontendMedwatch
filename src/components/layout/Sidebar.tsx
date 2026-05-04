@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import {
@@ -12,15 +12,16 @@ import {
   Users,
   BarChart3,
   ShieldCheck,
-  Map,
-  Network,
-  Atom,
   Grid3x3,
   FileDown,
   Sun,
   Moon,
   ChevronLeft,
   ChevronRight,
+  LogOut,
+  UserCog,
+  Database,
+  User as UserIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -29,27 +30,48 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { useHydratedAuth } from "@/lib/use-hydrated-store";
 
 interface SidebarProps {
   mobileOpen: boolean;
   onMobileClose: () => void;
 }
 
-const navItems = [
+type NavItem = { label: string; icon: typeof LayoutDashboard; href: string };
+
+const NAV_TKES: NavItem[] = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Drug Search", icon: Search, href: "/drug-search" },
   { label: "Drug Comparison", icon: GitCompare, href: "/drug-comparison" },
   { label: "Patients", icon: Users, href: "/patients" },
   { label: "Visualization", icon: BarChart3, href: "/visualization" },
   { label: "Safety Checker", icon: ShieldCheck, href: "/safety-checker" },
-  { label: "Indonesia Map", icon: Map, href: "/indonesia-map" },
-  { label: "Drug Network", icon: Network, href: "/drug-network" },
-  { label: "Molecule Viewer", icon: Atom, href: "/molecule-viewer" },
   { label: "Heatmap", icon: Grid3x3, href: "/heatmap" },
   { label: "Export PDF", icon: FileDown, href: "/export" },
-] as const;
+];
+
+const NAV_ADMIN_EXTRA: NavItem[] = [
+  { label: "Admin Dashboard", icon: LayoutDashboard, href: "/admin/dashboard" },
+  { label: "Trigger Scraper", icon: Database, href: "/admin/scraper" },
+  { label: "Manage Users", icon: UserCog, href: "/admin/users" },
+];
+
+const NAV_MASYARAKAT: NavItem[] = [
+  { label: "My Profile", icon: UserIcon, href: "/pasien/profile" },
+  { label: "Drug Search", icon: Search, href: "/drug-search" },
+  { label: "Safety Checker", icon: ShieldCheck, href: "/safety-checker" },
+];
+
+function navForRole(role: string | undefined): NavItem[] {
+  if (role === "admin") return [...NAV_ADMIN_EXTRA, ...NAV_TKES];
+  if (role === "masyarakat") return NAV_MASYARAKAT;
+  if (role === "tenaga_kesehatan") return NAV_TKES;
+  return NAV_TKES;
+}
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
+  const router = useRouter();
+  const auth = useHydratedAuth();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("sidebar-collapsed") === "true";
@@ -61,7 +83,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const [themeRotation, setThemeRotation] = useState(0);
   const [mounted, setMounted] = useState(false);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- mounted flag is a standard hydration pattern
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   const handleSetCollapsed = useCallback((v: boolean) => {
@@ -79,9 +101,17 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
     return pathname.startsWith(href);
   };
 
+  const handleLogout = async () => {
+    await auth.logout();
+    router.push("/login");
+  };
+
+  const navItems = navForRole(auth.user?.role);
+
+  if (pathname === "/login") return null;
+
   return (
     <>
-      {/* Mobile overlay backdrop */}
       {mobileOpen && (
         <div
           role="button"
@@ -95,7 +125,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 z-50 h-screen flex flex-col",
@@ -107,7 +136,6 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           mobileOpen && "!flex"
         )}
       >
-        {/* Logo area */}
         <div className="flex items-center h-16 px-4 shrink-0">
           {collapsed ? (
             <div className="flex items-center justify-center w-full">
@@ -125,14 +153,19 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           )}
         </div>
 
+        {auth.user && !collapsed && (
+          <div className="px-4 pb-3 shrink-0">
+            <div className="text-[11px] uppercase tracking-wider text-slate-500">{auth.user.role.replace("_", " ")}</div>
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{auth.user.name || auth.user.username}</div>
+          </div>
+        )}
+
         <Separator className="mx-3 w-auto" />
 
-        {/* Navigation */}
         <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {navItems.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
-
             const linkEl = (
               <Link
                 href={item.href}
@@ -158,29 +191,39 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 </span>
               </Link>
             );
-
             if (collapsed) {
               return (
                 <Tooltip key={item.href}>
-                  <TooltipTrigger render={<div />}>
-                    {linkEl}
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {item.label}
-                  </TooltipContent>
+                  <TooltipTrigger render={<div />}>{linkEl}</TooltipTrigger>
+                  <TooltipContent side="right" sideOffset={8}>{item.label}</TooltipContent>
                 </Tooltip>
               );
             }
-
             return <div key={item.href}>{linkEl}</div>;
           })}
         </nav>
 
-        {/* Bottom section */}
         <div className="px-3 pb-4 space-y-2 shrink-0">
           <Separator className="mx-0 mb-2 w-auto" />
 
-          {/* Theme toggle */}
+          {auth.user && (
+            <button
+              onClick={handleLogout}
+              aria-label="Logout"
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium w-full",
+                "text-red-500 hover:bg-red-500/10 transition-all duration-200",
+                collapsed && "justify-center px-0"
+              )}
+            >
+              <LogOut className="w-5 h-5 shrink-0" />
+              <span className={cn("whitespace-nowrap transition-opacity duration-150",
+                collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100")}>
+                Logout
+              </span>
+            </button>
+          )}
+
           <button
             onClick={toggleTheme}
             aria-label={mounted && theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -193,28 +236,15 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               collapsed && "justify-center px-0"
             )}
           >
-            <motion.div
-              animate={{ rotate: themeRotation }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="shrink-0"
-            >
-              {mounted && theme === "dark" ? (
-                <Sun className="w-5 h-5" />
-              ) : (
-                <Moon className="w-5 h-5" />
-              )}
+            <motion.div animate={{ rotate: themeRotation }} transition={{ duration: 0.3, ease: "easeInOut" }} className="shrink-0">
+              {mounted && theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </motion.div>
-            <span
-              className={cn(
-                "whitespace-nowrap transition-opacity duration-150",
-                collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-              )}
-            >
+            <span className={cn("whitespace-nowrap transition-opacity duration-150",
+              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100")}>
               {mounted && theme === "dark" ? "Light Mode" : "Dark Mode"}
             </span>
           </button>
 
-          {/* Collapse toggle (desktop only) */}
           <button
             onClick={() => handleSetCollapsed(!collapsed)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -225,29 +255,19 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               "text-slate-600 dark:text-slate-400",
               "hover:bg-white/70 dark:hover:bg-white/[0.1]",
               "hover:text-slate-900 dark:hover:text-slate-200",
-              "hover:border-black/[0.1] dark:hover:border-white/[0.12]",
               "transition-all duration-200 cursor-pointer",
               collapsed && "justify-center px-0"
             )}
           >
-            {collapsed ? (
-              <ChevronRight className="w-5 h-5 shrink-0" />
-            ) : (
-              <ChevronLeft className="w-5 h-5 shrink-0" />
-            )}
-            <span
-              className={cn(
-                "whitespace-nowrap transition-opacity duration-150",
-                collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-              )}
-            >
+            {collapsed ? <ChevronRight className="w-5 h-5 shrink-0" /> : <ChevronLeft className="w-5 h-5 shrink-0" />}
+            <span className={cn("whitespace-nowrap transition-opacity duration-150",
+              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100")}>
               Collapse
             </span>
           </button>
         </div>
       </aside>
 
-      {/* Spacer to push content right (matches sidebar width on desktop) */}
       <div
         className={cn(
           "hidden lg:block shrink-0 transition-all duration-300 ease-in-out",

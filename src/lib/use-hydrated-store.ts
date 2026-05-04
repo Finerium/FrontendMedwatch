@@ -1,31 +1,31 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
-import { usePatientStore } from "./store";
-
-function subscribe(callback: () => void) {
-  return usePatientStore.persist.onFinishHydration(callback);
-}
-
-function getSnapshot() {
-  return usePatientStore.persist.hasHydrated();
-}
-
-function getServerSnapshot() {
-  return false;
-}
+/**
+ * Hooks to lazily hydrate stores from backend API on first mount.
+ */
+import { useEffect } from "react";
+import { usePatientStore } from "@/lib/store";
+import { useAuthStore } from "@/lib/auth-store";
 
 export function useHydratedPatientStore() {
-  const hydrated = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const rehydrated = useRef(false);
-
+  const state = usePatientStore();
+  const fetched = state.fetched;
+  const loading = state.loading;
+  const refresh = state.refresh;
   useEffect(() => {
-    if (!rehydrated.current) {
-      rehydrated.current = true;
-      if (!usePatientStore.persist.hasHydrated()) {
-        usePatientStore.persist.rehydrate();
-      }
+    if (!fetched && !loading) {
+      refresh();
     }
-  }, []);
+  }, [fetched, loading, refresh]);
+  return { ...state, hydrated: fetched };
+}
 
-  const store = usePatientStore();
-  return { ...store, hydrated };
+export function useHydratedAuth() {
+  const state = useAuthStore();
+  const hydrated = state.hydrated;
+  const fetchMe = state.fetchMe;
+  useEffect(() => {
+    if (!hydrated) {
+      fetchMe();
+    }
+  }, [hydrated, fetchMe]);
+  return state;
 }
