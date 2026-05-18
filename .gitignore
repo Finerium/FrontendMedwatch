@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -13,43 +14,65 @@
 # testing
 /coverage
 
-# next.js
+# Next.js
 /.next/
+.next/
 /out/
+out/
 
-# production
+# production / build
 /build
+build/
 
-# misc
+# Turbo
+.turbo/
+
+# Vercel
+.vercel
+.vercel/
+
+# OS
 .DS_Store
+Thumbs.db
 *.pem
 
-# debug
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Env files (except example)
+.env
+.env.*
+!.env.example
+.env*.local
 
-# vercel
-.vercel
-
-# typescript
+# TypeScript
 *.tsbuildinfo
 next-env.d.ts
 
-# playwright mcp debug
+# Playwright + Vercel temp
 .playwright-mcp/
 
-# dev screenshots in root (keep screenshots/ folder)
+# Dev screenshots in repo root (Wave 1 evidence; do not commit run-artifacts moving forward)
 /*.png
+screenshots/
 
-# backup files
+# Backup files
 *.bak
-.env*.local
 
-# Ghaisan local-only folders (preserved out of repo)
-pitch-video/
+# Ghaisan local-only folders (preserved out of repo; do not delete)
 untitled folder/
+
+# Pitch video build outputs
+pitch-video/out/
+pitch-video/node_modules/
+pitch-video/scripts/
+pitch-video/scripts 2/
+pitch-video/
