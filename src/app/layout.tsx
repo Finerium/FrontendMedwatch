@@ -10,7 +10,7 @@ import "./globals.css";
 
 /** Static metadata used by Next.js for the document title and OpenGraph. */
 export const metadata: Metadata = {
-  title: "MedWatch — Faskes 1 Drug Safety",
+  title: "MedWatch: Faskes 1 Drug Safety",
   description:
     "Sistem monitoring keamanan obat dan manajemen klinik faskes 1 untuk tenaga kesehatan, masyarakat, dan administrator.",
 };
