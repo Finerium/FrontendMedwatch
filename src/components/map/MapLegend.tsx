@@ -1,7 +1,15 @@
+/**
+ * Static "Kepadatan Pasien" gradient legend pinned over the map.
+ * Marked `"use client"` to keep the dark-mode tailwind utility
+ * branches alive at runtime.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Render a small gradient swatch with low/high labels.
+ */
 export function MapLegend() {
   return (
     <div

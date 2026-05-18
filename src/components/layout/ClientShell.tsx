@@ -1,3 +1,9 @@
+/**
+ * Legacy sidebar-style layout shell. Marked `"use client"` because it
+ * owns the mobile-drawer open state and provides the theme/tooltip
+ * contexts to every descendant. Kept alongside `AppShell` for older
+ * routes that have not yet been migrated to the simpler shell.
+ */
 "use client";
 
 import { useState } from "react";
@@ -10,9 +16,16 @@ import { CommandPalette } from "@/components/shared/CommandPalette";
 import { Toaster } from "@/components/ui/sonner";
 
 interface ClientShellProps {
+  /** Page content rendered inside the shell. */
   children: React.ReactNode;
 }
 
+/**
+ * Wrap the sidebar layout, command palette, toaster, and ambient
+ * background with the theme and tooltip providers.
+ *
+ * @param props - See `ClientShellProps`.
+ */
 export function ClientShell({ children }: ClientShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 

@@ -1,5 +1,13 @@
 /**
- * Continuous color-scale utilities for the MedWatch heatmap.
+ * Continuous color-scale utilities for the MedWatch adverse-event heatmap
+ * (B11). The ramp is a classic risk matrix that aligns with the existing
+ * MedWatch palette semantics: green for safe, amber for warn, terracotta
+ * for critical. d3-scale and d3-interpolate are reused (already in
+ * package.json) so we avoid a custom interpolator.
+ *
+ * Key exports: `RISK_RAMP`, `buildColorScale`, `relativeLuminance`,
+ * `getContrastingTextColor`, `buildGradientCss`, `colorForZero`,
+ * `rampInterpolator`.
  *
  * Color ramp (5 stops, "classic risk-matrix"):
  *   green -> light-green -> pale-yellow -> orange -> red
@@ -8,8 +16,6 @@
  *   - low values = safe (sage/green)
  *   - mid values = warn (amber)
  *   - high values = critical (terracotta red)
- *
- * Uses d3-scale + d3-interpolate which are already in package.json.
  */
 import { scaleLinear } from "d3-scale";
 import { interpolateRgbBasis, piecewise, interpolateRgb } from "d3-interpolate";

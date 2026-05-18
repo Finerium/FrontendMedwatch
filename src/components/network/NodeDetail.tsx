@@ -1,3 +1,8 @@
+/**
+ * Slide-in detail panel for the drug network graph. Marked `"use client"`
+ * because it animates with Framer Motion and rebuilds the connected-edge
+ * list every time the selected node changes.
+ */
 "use client";
 
 import { motion } from "framer-motion";
@@ -19,6 +24,11 @@ const categoryColorMap: Record<DrugCategory, string> = {
   Corticosteroid: "#a855f7",
 };
 
+/**
+ * Render a colored severity pill for an interaction.
+ *
+ * @param severity - "Minor" | "Moderate" | "Major".
+ */
 function severityBadge(severity: "Minor" | "Moderate" | "Major") {
   const styles = {
     Minor: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/20",
@@ -38,12 +48,22 @@ function severityBadge(severity: "Minor" | "Moderate" | "Major") {
 }
 
 interface NodeDetailProps {
+  /** Currently selected node, or null to hide the panel. */
   node: DrugNode | null;
+  /** All edges in the graph (filtered internally to connected ones). */
   edges: DrugEdge[];
+  /** Full node set so neighbours can be looked up by id. */
   allNodes: DrugNode[];
+  /** Close button callback. */
   onClose: () => void;
 }
 
+/**
+ * Render the slide-in panel that lists every interaction involving the
+ * selected drug.
+ *
+ * @param props - See `NodeDetailProps`.
+ */
 export function NodeDetail({ node, edges, allNodes, onClose }: NodeDetailProps) {
   if (!node) return null;
 

@@ -1,3 +1,13 @@
+/**
+ * Drug-safety screening page. Marked `"use client"` because the patient
+ * picker, drug chip input, and verdict panel rely on local state and on
+ * the live backend interaction engine at /api/safety/check. Bidan and
+ * masyarakat roles see slightly different copy; B05 active-meds
+ * awareness is implemented by the effect that watches `patient`.
+ *
+ * `force-dynamic` is required because the `?drug=` deep link must
+ * survive without a cached HTML output.
+ */
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -10,6 +20,7 @@ import { NavIcon } from "@/components/shell/NavIcon";
 
 export const dynamic = "force-dynamic";
 
+/** Severity words shown to the user. */
 type SeverityWord = "aman" | "ringan" | "sedang" | "serius";
 
 type BackendInteraction = {
@@ -54,6 +65,14 @@ const SEVERITY_ORDER: Record<SeverityWord, number> = {
   aman: 3,
 };
 
+/**
+ * Coerce the backend's `tingkat_keparahan` string into one of the four
+ * fixed severity tokens used by the UI. Defaults to "ringan" so an
+ * unknown value still renders as a visible chip rather than disappearing.
+ *
+ * @param raw - Raw severity string from the backend payload.
+ * @returns Normalised severity token.
+ */
 function normalizeSeverity(raw: string): SeverityWord {
   const v = (raw || "").toLowerCase();
   if (v.startsWith("seri")) return "serius";
@@ -62,6 +81,14 @@ function normalizeSeverity(raw: string): SeverityWord {
   return "ringan";
 }
 
+/**
+ * Map the backend's overall severity level to a UI severity word,
+ * accounting for the case where no interactions were returned.
+ *
+ * @param level - Severity level returned by /api/safety/check.
+ * @param hasResults - Whether the verdict actually carries entries.
+ * @returns Severity word used to drive the verdict card style.
+ */
 function levelToOverall(level: "low" | "medium" | "high", hasResults: boolean): SeverityWord {
   if (level === "high") return "serius";
   if (level === "medium") return "sedang";
@@ -96,6 +123,10 @@ const OVERALL_STYLE: Record<SeverityWord, { color: string; bg: string; label: st
   },
 };
 
+/**
+ * Page-level Suspense wrapper required by `useSearchParams` under the
+ * App Router. All interactive logic lives in `SafetyCheckerInner`.
+ */
 export default function SafetyCheckerPage() {
   return (
     <Suspense fallback={null}>
@@ -104,6 +135,11 @@ export default function SafetyCheckerPage() {
   );
 }
 
+/**
+ * Interactive body of the safety checker. Loads the drug catalog and
+ * patient list once, watches for `?drug=` prefill, and exposes the
+ * verdict card plus per-result detail cards once a scan completes.
+ */
 function SafetyCheckerInner() {
   const params = useSearchParams();
   const initialDrugParam = params.get("drug") || "";

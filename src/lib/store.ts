@@ -1,6 +1,11 @@
 /**
- * Patient store backed by backend API. Replaces the previous localStorage Zustand store.
- * The Patient type now mirrors backend SOAP schema (api/storage canonical shape).
+ * Patient Zustand store. Backed by the live backend API rather than
+ * localStorage so every device sees the same authoritative SOAP records.
+ * Re-exports `Patient` and `PatientSummary` so component code can import
+ * everything from a single module.
+ *
+ * Key exports: `usePatientStore`, the `Patient` and `PatientSummary`
+ * re-exported types.
  */
 import { create } from "zustand";
 import { api } from "@/lib/api";

@@ -1,3 +1,8 @@
+/**
+ * Inline span that counts up to a numeric target the first time it
+ * scrolls into view. Marked `"use client"` because the animation is
+ * driven by Framer Motion values and an in-view sentinel ref.
+ */
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -10,17 +15,34 @@ import {
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface AnimatedCounterProps {
+  /** Final numeric value displayed when the animation completes. */
   value: number;
+  /** Animation length in milliseconds. */
   duration?: number;
+  /** Display mode: plain number or percent suffix. */
   format?: "number" | "percent";
+  /** Extra class names forwarded to the span. */
   className?: string;
 }
 
+/**
+ * Format an integer with the Indonesian locale and an optional percent
+ * suffix.
+ *
+ * @param num - Integer value to format.
+ * @param format - "number" or "percent".
+ */
 function formatValue(num: number, format: "number" | "percent") {
   const formatted = num.toLocaleString("id-ID");
   return format === "percent" ? `${formatted}%` : formatted;
 }
 
+/**
+ * Render the count-up span. Falls back to a static value when
+ * `prefers-reduced-motion` is set.
+ *
+ * @param props - See `AnimatedCounterProps`.
+ */
 export function AnimatedCounter({
   value,
   duration = 1500,

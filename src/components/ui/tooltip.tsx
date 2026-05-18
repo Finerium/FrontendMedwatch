@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Tooltip composition over `@base-ui/react/tooltip`. Marked
+ * `"use client"` because the primitive uses portal rendering, pointer
+ * tracking, and timing-based open/close states.
+ */
 "use client"
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"

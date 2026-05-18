@@ -1,8 +1,14 @@
 /**
- * Patient SOAP schema (matches backend api/storage canonical shape).
- * Helper functions for bidan-style display rendering.
+ * Patient SOAP type definitions and bidan-friendly display helpers. The
+ * types mirror the canonical shape used by the Python backend
+ * `api/storage` module so client and server agree about field names.
+ *
+ * Key exports: types `Patient`, `PatientSummary`, `PatientObjective`;
+ * helpers `formatTanggalLong`, `composeO`, `todayDDMMYYYY`,
+ * `parseResepToMeds`.
  */
 
+/** Objective vital signs block in the SOAP record. */
 export type PatientObjective = {
   tekanan_darah?: string;
   nadi?: string;
@@ -14,6 +20,7 @@ export type PatientObjective = {
   catatan?: string;
 };
 
+/** Full SOAP patient record returned by GET /api/patients/{id}. */
 export type Patient = {
   id: string;
   tanggal_kunjungan?: string;
@@ -29,6 +36,7 @@ export type Patient = {
   owner_username?: string;
 };
 
+/** Lightweight summary returned by the list endpoint. */
 export type PatientSummary = {
   id: string;
   nama: string;
@@ -42,6 +50,14 @@ const NAMA_BULAN = [
   "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ];
 
+/**
+ * Render a dd-MM-yyyy string as "d Bulan yyyy" in Bahasa Indonesia.
+ * Falls back to the raw input when the format is unrecognised so the UI
+ * never silently drops data.
+ *
+ * @param tanggal - Date string in dd-MM-yyyy format.
+ * @returns Indonesian long-form date or "-" when missing.
+ */
 export function formatTanggalLong(tanggal: string | undefined): string {
   if (!tanggal) return "-";
   const parts = tanggal.split("-");
@@ -52,6 +68,14 @@ export function formatTanggalLong(tanggal: string | undefined): string {
   return `${parseInt(d)} ${NAMA_BULAN[monthIdx]} ${y}`;
 }
 
+/**
+ * Compose the Objective section of a SOAP record into a single human
+ * sentence. Used in patient detail headers and PDF previews where the
+ * vitals must be readable at a glance.
+ *
+ * @param o - Objective block from a Patient record.
+ * @returns Single-line summary or "-" when nothing is recorded.
+ */
 export function composeO(o: PatientObjective | undefined): string {
   if (!o) return "-";
   const parts: string[] = [];
@@ -66,6 +90,12 @@ export function composeO(o: PatientObjective | undefined): string {
   return parts.length > 0 ? parts.join(", ") : "-";
 }
 
+/**
+ * Local-time helper that returns today as dd-MM-yyyy. Backend expects the
+ * mission-locked Indonesian locale format on every patient write.
+ *
+ * @returns Today as a dd-MM-yyyy string.
+ */
 export function todayDDMMYYYY(): string {
   const d = new Date();
   const dd = String(d.getDate()).padStart(2, "0");

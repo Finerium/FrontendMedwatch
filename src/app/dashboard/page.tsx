@@ -1,3 +1,12 @@
+/**
+ * Bidan/masyarakat/admin landing dashboard. Marked `"use client"` because
+ * KPI sparklines and the count-up animation hook into the browser's
+ * `requestAnimationFrame` and the greeting depends on the local clock.
+ *
+ * The role-driven copy (KPIs, quick actions, side panel) keeps the UI
+ * coherent for each of the three demo personas defined by the kelompok
+ * B5 mission.
+ */
 "use client";
 
 import Link from "next/link";
@@ -5,8 +14,10 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { NavIcon } from "@/components/shell/NavIcon";
 
+/** Series of integers consumed by the KPI sparkline SVG. */
 type Sparkline = number[];
 
+/** Single KPI card definition. */
 type Kpi = {
   label: string;
   value: number;
@@ -17,6 +28,13 @@ type Kpi = {
   big?: boolean;
 };
 
+/**
+ * Eased count-up animation used by KPI cards. Plays once on mount.
+ *
+ * @param props.to - Final integer value to display.
+ * @param props.duration - Animation length in milliseconds; defaults to 1400.
+ * @returns Inline span with the locale-formatted current value.
+ */
 function CountUp({ to, duration = 1400 }: { to: number; duration?: number }) {
   const [val, setVal] = useState(0);
   useEffect(() => {
@@ -34,6 +52,13 @@ function CountUp({ to, duration = 1400 }: { to: number; duration?: number }) {
   return <>{val.toLocaleString("id-ID")}</>;
 }
 
+/**
+ * Render a small filled-area sparkline from an arbitrary integer series.
+ *
+ * @param props.data - Values to plot left-to-right.
+ * @param props.color - Stroke and fill color (defaults to brand teal).
+ * @returns Inline SVG sized to fill its parent.
+ */
 function Sparkline({ data, color = "var(--teal)" }: { data: Sparkline; color?: string }) {
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -54,6 +79,14 @@ function Sparkline({ data, color = "var(--teal)" }: { data: Sparkline; color?: s
   );
 }
 
+/**
+ * Single KPI card. Composed from a label, animated value, delta chip, and
+ * optional sparkline. Layout occupies one or two grid columns based on
+ * the `big` flag.
+ *
+ * @param props - KPI definition; see the `Kpi` type for field meanings.
+ * @returns Glassy KPI card.
+ */
 function KpiCard({ label, value, delta, deltaDir, sparkline, accent, big }: Kpi) {
   return (
     <div
@@ -132,6 +165,14 @@ function KpiCard({ label, value, delta, deltaDir, sparkline, accent, big }: Kpi)
 type ActivityKind = "visit" | "drug" | "alert" | "soap";
 type Severity = "ringan" | "sedang" | "serius" | null;
 
+/**
+ * One row of the "Aktivitas terbaru" feed.
+ *
+ * @param props.time - Display timestamp (e.g. "14:32").
+ * @param props.kind - Activity icon family.
+ * @param props.text - Indonesian description line.
+ * @param props.severity - Severity tag or null when not applicable.
+ */
 function ActivityRow({
   time,
   kind,
@@ -207,6 +248,12 @@ function ActivityRow({
   );
 }
 
+/**
+ * Role-aware landing dashboard. Reads the hydrated auth state to choose
+ * the right copy block, KPI grid, quick actions, and side panel. While
+ * the auth store is still hydrating, a skeleton grid is rendered so the
+ * page lays out without flashing wrong values.
+ */
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);

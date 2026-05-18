@@ -1,3 +1,10 @@
+/**
+ * Force-directed drug interaction graph. Marked `"use client"` because
+ * `react-force-graph-2d` mutates DOM canvases imperatively and uses
+ * `requestAnimationFrame` to simulate forces; the underlying library is
+ * dynamically imported with `ssr: false` so the server build does not
+ * pull in a window reference.
+ */
 "use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
@@ -23,6 +30,12 @@ const categoryColorMap: Record<DrugCategory, string> = {
   Corticosteroid: "#a855f7",
 };
 
+/**
+ * Pick the edge stroke color for a given severity bucket.
+ *
+ * @param severity - Severity string from the interaction record.
+ * @returns rgba color used as the edge color.
+ */
 function severityLinkColor(severity: string): string {
   switch (severity) {
     case "Minor":
@@ -36,6 +49,12 @@ function severityLinkColor(severity: string): string {
   }
 }
 
+/**
+ * Pick the edge stroke width for a given severity bucket.
+ *
+ * @param severity - Severity string from the interaction record.
+ * @returns Stroke width in pixels.
+ */
 function severityLinkWidth(severity: string): number {
   switch (severity) {
     case "Minor":
@@ -49,6 +68,12 @@ function severityLinkWidth(severity: string): number {
   }
 }
 
+/**
+ * Pick the animated particle color for a given severity bucket.
+ *
+ * @param severity - Severity string from the interaction record.
+ * @returns rgba color used for the moving particle.
+ */
 function severityParticleColor(severity: string): string {
   switch (severity) {
     case "Minor":
@@ -77,12 +102,22 @@ type GraphLink = DrugEdge & {
 };
 
 interface DrugNetworkProps {
+  /** All drug nodes in the graph. */
   nodes: DrugNode[];
+  /** All interaction edges between nodes. */
   edges: DrugEdge[];
+  /** Notify the parent when a node is clicked. */
   onNodeClick: (node: DrugNode) => void;
+  /** Whitelist of drug categories that should remain visible. */
   activeCategories: Set<string>;
 }
 
+/**
+ * Render the force-directed interaction graph with hover highlights,
+ * severity-coded edges, and category-coloured nodes.
+ *
+ * @param props - See `DrugNetworkProps`.
+ */
 export function DrugNetwork({
   nodes,
   edges,
@@ -368,6 +403,14 @@ export function DrugNetwork({
   );
 }
 
+/**
+ * Convert a `#rrggbb` hex string to an `rgba(...)` color with the
+ * specified alpha channel.
+ *
+ * @param hex - Six-digit hex color string including the leading `#`.
+ * @param alpha - Alpha 0..1.
+ * @returns CSS rgba color string.
+ */
 function hexToRgba(hex: string, alpha: number): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

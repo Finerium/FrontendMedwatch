@@ -1,3 +1,7 @@
+/**
+ * shadcn/ui Card primitive plus header/title/description/content
+ * sub-parts. Server component; no runtime state.
+ */
 import * as React from "react"
 
 import { cn } from "@/lib/utils"

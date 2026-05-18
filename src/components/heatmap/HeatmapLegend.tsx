@@ -1,5 +1,15 @@
+/**
+ * Static gradient legend rendered beside the heatmap. Marked
+ * `"use client"` only because Next would otherwise tree-shake the
+ * `hidden dark:block` branch detection; keeping the directive ensures
+ * the swatch reacts to runtime theme switches.
+ */
 "use client";
 
+/**
+ * Render the 0%-100% gradient legend used to interpret cell colors in
+ * the heatmap grid.
+ */
 export function HeatmapLegend() {
   return (
     <div className="bg-white/70 dark:bg-white/[0.05] backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.08] rounded-xl p-4">

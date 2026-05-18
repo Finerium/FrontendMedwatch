@@ -1,16 +1,30 @@
+/**
+ * Right-rail controls for the molecule viewer. Marked `"use client"`
+ * because every button toggles parent state.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 import { Play, Pause, RotateCcw, Box, Eye } from "lucide-react";
 
 interface ViewerControlsProps {
+  /** Whether the scene is auto-rotating. */
   autoRotate: boolean;
+  /** Whether bonds are wireframed. */
   wireframe: boolean;
+  /** Flip the auto-rotation state. */
   onToggleRotate: () => void;
+  /** Flip the wireframe state. */
   onToggleWireframe: () => void;
+  /** Reset camera position to the default. */
   onResetView: () => void;
 }
 
+/**
+ * Render the three control buttons (play/pause, reset, wireframe).
+ *
+ * @param props - See `ViewerControlsProps`.
+ */
 export function ViewerControls({
   autoRotate,
   wireframe,

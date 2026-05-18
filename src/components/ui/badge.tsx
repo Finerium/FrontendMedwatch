@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Badge primitive. Pure presentational; stays a server
+ * component. Style variants declared via `cva` and re-exported as
+ * `badgeVariants` for composite usage.
+ */
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cva, type VariantProps } from "class-variance-authority"

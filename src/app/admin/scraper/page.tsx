@@ -1,8 +1,15 @@
+/**
+ * Admin scraper control panel. Marked `"use client"` because it owns the
+ * job list state, sends POST requests to trigger a scrape, and updates
+ * the row status in place. Triggering is mocked in the MVP; the backend
+ * still proxies the call to a stub endpoint so the round trip is real.
+ */
 "use client";
 
 import { useState } from "react";
 import { api } from "@/lib/api";
 
+/** One scraper job tile rendered in the panel. */
 type ScrapeJob = {
   name: string;
   status: "running" | "success" | "failed";
@@ -16,6 +23,10 @@ const sevMap: Record<ScrapeJob["status"], "sedang" | "ringan" | "serius"> = {
   failed: "serius",
 };
 
+/**
+ * Render the scraper job table and expose a per-job "Run" button.
+ * Posts to `/api/admin/scrape` and updates the affected row inline.
+ */
 export default function AdminScraperPage() {
   const [jobs, setJobs] = useState<ScrapeJob[]>([
     {

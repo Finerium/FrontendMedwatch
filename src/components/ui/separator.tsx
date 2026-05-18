@@ -1,3 +1,7 @@
+/**
+ * shadcn/ui Separator primitive. Marked `"use client"` only because
+ * the base primitive's orientation attribute is consumed at render time.
+ */
 "use client"
 
 import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"

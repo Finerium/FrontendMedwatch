@@ -1,9 +1,16 @@
+/**
+ * Admin landing page. Marked `"use client"` because it fetches live
+ * system statistics on mount via the catch-all proxy and renders a
+ * skeleton while the call is in flight. Replaces the previously
+ * hardcoded KPIs in B10.
+ */
 "use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
+/** Aggregated system metrics returned by GET /api/admin/system-stats. */
 type SystemStats = {
   users_count: number;
   patients_count: number;
@@ -14,8 +21,15 @@ type SystemStats = {
   uptime_seconds?: number;
 };
 
+/** One stat tile (label / number / description). */
 type StatRow = { label: string; n: string; d: string };
 
+/**
+ * Format an uptime in seconds into a humanised Indonesian string.
+ *
+ * @param seconds - Process uptime from `/api/admin/system-stats`.
+ * @returns `{ n, d }` pair used as the tile number and description.
+ */
 function formatUptime(seconds: number): { n: string; d: string } {
   if (!Number.isFinite(seconds) || seconds < 0) {
     return { n: "-", d: "tidak tersedia" };
@@ -32,6 +46,11 @@ function formatUptime(seconds: number): { n: string; d: string } {
   return { n: `${minutes}m`, d: "sejak proses berjalan" };
 }
 
+/**
+ * Admin dashboard. Fetches live system stats once on mount and shows a
+ * skeleton tile grid while the request is in flight. The CTA card and
+ * audit log are static seed data for the demo.
+ */
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [loaded, setLoaded] = useState(false);

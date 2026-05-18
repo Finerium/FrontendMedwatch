@@ -1,3 +1,9 @@
+/**
+ * Searchable drug directory. Marked `"use client"` for the live filter
+ * input, the OTC/Rx tab toggle, and the detail panel that updates without
+ * a route change. The catalog is fetched once on mount and translated
+ * into the camelCase display shape used throughout the UI.
+ */
 "use client";
 
 import Link from "next/link";
@@ -6,6 +12,10 @@ import { api, ApiError } from "@/lib/api";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import { NavIcon } from "@/components/shell/NavIcon";
 
+/**
+ * Render the drug search list view plus the slide-in detail panel.
+ * Wires through to `safety-checker` and `drug-comparison` via deep links.
+ */
 export default function DrugSearchPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "otc" | "rx">("all");

@@ -1,3 +1,9 @@
+/**
+ * Top-level interactive shell that wraps every authenticated page.
+ * Marked `"use client"` because it owns the theme provider, reads the
+ * pathname for the login-page exception, and triggers the lazy auth
+ * hydration that the rest of the app depends on.
+ */
 "use client";
 
 import { ThemeProvider } from "next-themes";
@@ -8,6 +14,11 @@ import { AmbientWorld } from "@/components/ambient/AmbientWorld";
 import { NavBar } from "./NavBar";
 import { ThemeToggle } from "./ThemeToggle";
 
+/**
+ * Inner component that runs after the theme provider is mounted.
+ *
+ * @param props.children - Page content rendered inside the shell.
+ */
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
@@ -39,6 +50,12 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Public shell entry point invoked from `src/app/layout.tsx`. Configures
+ * the theme provider and delegates to `ShellContent`.
+ *
+ * @param props.children - Page content rendered inside the shell.
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="data-theme" defaultTheme="light" enableSystem={false}>

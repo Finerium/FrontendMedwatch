@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Input primitive. Forwarded ref-style component over
+ * `@base-ui/react/input`; stays a server component because no client
+ * state is owned here.
+ */
 import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 

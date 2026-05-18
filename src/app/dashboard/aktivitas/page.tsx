@@ -1,12 +1,21 @@
+/**
+ * Full-feed companion to the bidan dashboard. Marked `"use client"`
+ * because it reads the live auth store to pick role-specific seed data.
+ * Created during Wave 1 to fix B02 (Lihat semua tombol inert), so the
+ * destination link in the dashboard summary now has a real page.
+ */
 "use client";
 
 import Link from "next/link";
 import { useEffect } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 
+/** Activity row icon family. */
 type ActivityKind = "visit" | "drug" | "alert" | "soap";
+/** Severity tag rendered in Bahasa Indonesia. */
 type Severity = "ringan" | "sedang" | "serius" | null;
 
+/** Single feed row. */
 type ActivityItem = {
   time: string;
   kind: ActivityKind;
@@ -80,6 +89,12 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   soap: "Rekam SOAP",
 };
 
+/**
+ * Render a single full-width activity row. Mirrors the compact row used
+ * on /dashboard but never truncates the description.
+ *
+ * @param props - Activity row payload.
+ */
 function ActivityFullRow({ time, kind, text, severity }: ActivityItem) {
   return (
     <div
@@ -123,6 +138,11 @@ function ActivityFullRow({ time, kind, text, severity }: ActivityItem) {
   );
 }
 
+/**
+ * Activity feed page. Picks role-appropriate seed data and lays the rows
+ * out without truncation. Kicks off auth hydration when the store has
+ * not been primed yet (covers a direct deep-link to the route).
+ */
 export default function AktivitasPage() {
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);

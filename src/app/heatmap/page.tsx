@@ -1,3 +1,11 @@
+/**
+ * Drug-by-side-effect heatmap (B11 fix). Marked `"use client"` because
+ * the grid is built from two server fetches stitched together, then
+ * sorted and color-scaled with d3 utilities in the browser. The page
+ * renders an honest fallback grid when the backend endpoints are
+ * unavailable so the visualisation never goes blank during the kelompok
+ * B5 demo.
+ */
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -58,6 +66,11 @@ function fallbackMatrix(drugs: string[], effects: string[]): number[][] {
   );
 }
 
+/**
+ * Render the drug-by-effect intensity matrix with a gradient legend.
+ * Cells use the WCAG luminance helper to pick a readable text color,
+ * and rows/columns are sorted so the highest totals land at top-left.
+ */
 export default function HeatmapPage() {
   const [loaded, setLoaded] = useState(false);
   const [missing, setMissing] = useState(false);

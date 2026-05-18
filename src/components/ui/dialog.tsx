@@ -1,3 +1,9 @@
+/**
+ * shadcn/ui Dialog composition built on `@base-ui/react/dialog`. Marked
+ * `"use client"` because the primitive owns focus, ARIA wiring, and the
+ * open/close transitions. Exports Root, Trigger, Portal, Backdrop,
+ * Content, Title, Description, Close, Footer.
+ */
 "use client"
 
 import * as React from "react"

@@ -1,10 +1,19 @@
 /**
- * Hooks to lazily hydrate stores from backend API on first mount.
+ * Hooks that lazily hydrate the auth and patient Zustand stores from the
+ * backend on first mount. Pages can call these without an explicit effect
+ * and trust that subsequent renders read from a populated cache.
+ *
+ * Key exports: `useHydratedPatientStore`, `useHydratedAuth`.
  */
 import { useEffect } from "react";
 import { usePatientStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/auth-store";
 
+/**
+ * Wrap `usePatientStore` and kick off a refresh on first mount.
+ *
+ * @returns The full patient store state with a `hydrated` flag.
+ */
 export function useHydratedPatientStore() {
   const state = usePatientStore();
   const fetched = state.fetched;
@@ -18,6 +27,12 @@ export function useHydratedPatientStore() {
   return { ...state, hydrated: fetched };
 }
 
+/**
+ * Wrap `useAuthStore` and call `fetchMe` once on mount so protected pages
+ * can render without each one re-implementing the same effect.
+ *
+ * @returns The full auth store state.
+ */
 export function useHydratedAuth() {
   const state = useAuthStore();
   const hydrated = state.hydrated;

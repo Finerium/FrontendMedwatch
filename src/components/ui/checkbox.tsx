@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Checkbox primitive wrapping `@base-ui/react/checkbox`.
+ * Marked `"use client"` because the underlying primitive maintains
+ * internal state and ARIA wiring.
+ */
 "use client"
 
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"

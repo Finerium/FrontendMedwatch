@@ -1,9 +1,25 @@
+/**
+ * Edge-runtime authentication and role gate for every UI route. Renamed
+ * from `middleware.ts` to `proxy.ts` to match the Next.js 16 convention
+ * (the matcher and export contract are unchanged).
+ *
+ * Responsibilities:
+ *   - Let public assets and login pass through.
+ *   - Verify the JWT cookie and decode the embedded role.
+ *   - Redirect each role to its landing page on the root.
+ *   - Block non-admins from /admin/* and confine `masyarakat` to the
+ *     allowlist below.
+ *
+ * Key exports: `proxy` (the runtime handler) and `config` (the matcher).
+ */
 import { NextRequest, NextResponse } from "next/server";
 
+/** Pages that never require authentication. */
 const PUBLIC_PATHS = new Set([
   "/login",
 ]);
 
+/** Path prefixes that never require authentication. */
 const PUBLIC_PREFIXES = [
   "/_next",
   "/static",
@@ -12,13 +28,28 @@ const PUBLIC_PREFIXES = [
   "/api/auth/logout",
 ];
 
+/** Path prefixes that require the admin role. */
 const ADMIN_PREFIXES = ["/admin"];
 
+/**
+ * Return true when the requested path should bypass the auth gate.
+ *
+ * @param pathname - Pathname from the incoming request URL.
+ * @returns True if the route is publicly reachable.
+ */
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
   return PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
+/**
+ * Decode the `role` claim from a JWT cookie without verifying the
+ * signature (the backend already verifies on every API call; the proxy
+ * uses the claim only to drive UI redirects).
+ *
+ * @param token - Raw JWT string from the medwatch_token cookie.
+ * @returns Role string or null when the token is malformed or expired.
+ */
 function decodeRole(token: string): string | null {
   try {
     const parts = token.split(".");
@@ -32,12 +63,27 @@ function decodeRole(token: string): string | null {
   }
 }
 
+/**
+ * Edge-runtime mirror of `landingForRole` in `src/lib/auth-store.ts`.
+ * Kept inline so the middleware bundle does not import any client code.
+ *
+ * @param role - Role claim from the JWT.
+ * @returns Absolute landing path for the role.
+ */
 function landingFor(role: string): string {
   if (role === "admin") return "/admin/dashboard";
   if (role === "masyarakat") return "/drug-search";
   return "/dashboard";
 }
 
+/**
+ * Edge handler executed on every UI route. Returns either a pass-through
+ * `NextResponse.next()` or a redirect that enforces the auth and role
+ * rules described in the file header.
+ *
+ * @param req - The incoming `NextRequest`.
+ * @returns NextResponse continuing or redirecting the request.
+ */
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -82,6 +128,10 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
+/**
+ * Next.js matcher config. Skips the API proxy, _next internals, static
+ * favicon, and binary assets so the edge runtime only sees UI routes.
+ */
 export const config = {
   matcher: [
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",

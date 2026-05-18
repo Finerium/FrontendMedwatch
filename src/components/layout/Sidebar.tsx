@@ -1,3 +1,9 @@
+/**
+ * Legacy collapsible sidebar nav with role-aware sections. Marked
+ * `"use client"` because the collapsed state persists in localStorage,
+ * the theme toggle uses `useTheme`, and the mobile drawer animates via
+ * Framer Motion. Used by `ClientShell` only.
+ */
 "use client";
 
 import { useCallback, useState, useEffect } from "react";
@@ -33,10 +39,13 @@ import { Separator } from "@/components/ui/separator";
 import { useHydratedAuth } from "@/lib/use-hydrated-store";
 
 interface SidebarProps {
+  /** Whether the mobile drawer overlay is currently open. */
   mobileOpen: boolean;
+  /** Callback to close the mobile drawer (overlay click / link click). */
   onMobileClose: () => void;
 }
 
+/** Single sidebar link entry. */
 type NavItem = { label: string; icon: typeof LayoutDashboard; href: string };
 
 const NAV_TKES: NavItem[] = [
@@ -62,6 +71,13 @@ const NAV_MASYARAKAT: NavItem[] = [
   { label: "Safety Checker", icon: ShieldCheck, href: "/safety-checker" },
 ];
 
+/**
+ * Pick the right link set for a role string. Defaults to the tenaga
+ * kesehatan menu so an unauthenticated state still renders predictably.
+ *
+ * @param role - Role identifier from the auth store.
+ * @returns Ordered list of nav items.
+ */
 function navForRole(role: string | undefined): NavItem[] {
   if (role === "admin") return [...NAV_ADMIN_EXTRA, ...NAV_TKES];
   if (role === "masyarakat") return NAV_MASYARAKAT;
@@ -69,6 +85,12 @@ function navForRole(role: string | undefined): NavItem[] {
   return NAV_TKES;
 }
 
+/**
+ * Render the desktop collapsible sidebar plus the mobile drawer
+ * overlay. Persists the collapsed flag in localStorage.
+ *
+ * @param props - See `SidebarProps`.
+ */
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const router = useRouter();
   const auth = useHydratedAuth();

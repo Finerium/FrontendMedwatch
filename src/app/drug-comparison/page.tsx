@@ -1,3 +1,12 @@
+/**
+ * Side-by-side drug comparison page. Marked `"use client"` because the
+ * user assembles up to three drugs interactively, the URL prefill via
+ * `?initial=` must update local state, and the search-with-suggestions
+ * box hosts a live filtered dropdown.
+ *
+ * `force-dynamic` prevents Next from caching the route output since the
+ * search params drive an immediate selection update.
+ */
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -9,6 +18,7 @@ import { NavIcon } from "@/components/shell/NavIcon";
 
 export const dynamic = "force-dynamic";
 
+/** Maximum drugs the side-by-side table can show without becoming unreadable. */
 const MAX_DRUGS = 3;
 
 const TABLE_ROWS: { key: keyof BackendDrug; label: string; mode: "scalar" | "list" }[] = [
@@ -21,6 +31,10 @@ const TABLE_ROWS: { key: keyof BackendDrug; label: string; mode: "scalar" | "lis
   { key: "peringatan", label: "Peringatan", mode: "list" },
 ];
 
+/**
+ * Page-level wrapper. `useSearchParams` needs a Suspense boundary; the
+ * inner component owns all interactive state.
+ */
 export default function DrugComparisonPage() {
   return (
     <Suspense fallback={null}>
@@ -29,6 +43,11 @@ export default function DrugComparisonPage() {
   );
 }
 
+/**
+ * Interactive comparison body. Fetches the full drug catalog once,
+ * builds a lowercased lookup for instant suggestions, and renders the
+ * comparison table plus the aggregated side-effect strip chart.
+ */
 function DrugComparisonInner() {
   const params = useSearchParams();
   const initialName = params.get("initial") || "";

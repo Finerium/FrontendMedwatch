@@ -1,3 +1,9 @@
+/**
+ * Clinic statistics dashboard. Marked `"use client"` because every chart
+ * is drawn from in-memory state and uses CSS animations to play in on
+ * mount; the API hydration falls back to deterministic seed data when
+ * any of the visualisation endpoints fails so the page never goes blank.
+ */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -39,6 +45,12 @@ type CardData = {
   effects: { drug: string; effect: string; n: number }[];
 };
 
+/**
+ * Filled-area line chart with a draw-on animation.
+ *
+ * @param props.data - Numeric values to plot left-to-right.
+ * @param props.labels - X-axis labels rendered under each point.
+ */
 function LineChart({ data, labels }: { data: number[]; labels: string[] }) {
   const w = 560;
   const h = 200;
@@ -95,6 +107,12 @@ function LineChart({ data, labels }: { data: number[]; labels: string[] }) {
   );
 }
 
+/**
+ * Vertical bar chart with a staggered grow-in animation.
+ *
+ * @param props.data - `{label, n}` rows to plot.
+ * @param props.color - Bar fill color (defaults to brand teal).
+ */
 function BarChart({ data, color = "var(--teal)" }: { data: { label: string; n: number }[]; color?: string }) {
   const max = Math.max(...data.map((d) => d.n), 1);
   return (
@@ -137,6 +155,15 @@ function BarChart({ data, color = "var(--teal)" }: { data: { label: string; n: n
   );
 }
 
+/**
+ * Glass-card wrapper used by every visualisation tile. Shows a skeleton
+ * until `loaded` becomes true.
+ *
+ * @param props.title - Card heading.
+ * @param props.caption - Monospace subtitle text.
+ * @param props.loaded - Whether the chart data has been hydrated.
+ * @param props.children - The chart itself (rendered once loaded).
+ */
 function ChartCard({
   title,
   caption,
@@ -165,6 +192,11 @@ function ChartCard({
   );
 }
 
+/**
+ * Render the four-card visualisation grid (visit trend, top complaints,
+ * top side effects, age segmentation). Failures from any single API
+ * call are swallowed so the rest of the page still renders cleanly.
+ */
 export default function VisualizationPage() {
   const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState<CardData>({

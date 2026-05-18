@@ -1,3 +1,9 @@
+/**
+ * Three-tile summary card row that derives "most common side effect",
+ * "safest drug", and "highest risk combo" from the underlying heatmap
+ * matrix. Marked `"use client"` because it uses `useMemo` to compute
+ * aggregates without re-running every render.
+ */
 "use client";
 
 import { useMemo } from "react";
@@ -7,9 +13,15 @@ import { AnimatedCounter } from "@/components/shared/AnimatedCounter";
 import { TrendingUp, Shield, AlertTriangle } from "lucide-react";
 
 interface HeatmapStatsProps {
+  /** Heatmap matrix bundle (drugs + side effects + values). */
   data: HeatmapData;
 }
 
+/**
+ * Render the three summary tiles for the heatmap page.
+ *
+ * @param props - See `HeatmapStatsProps`.
+ */
 export function HeatmapStats({ data }: HeatmapStatsProps) {
   const stats = useMemo(() => {
     // Most common side effect (highest average across all drugs)

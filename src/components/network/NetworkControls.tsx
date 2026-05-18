@@ -1,3 +1,8 @@
+/**
+ * Control panel rendered alongside the drug network graph. Marked
+ * `"use client"` because filters and zoom buttons all dispatch parent
+ * state updates and the panel collapses with a Framer Motion animation.
+ */
 "use client";
 
 import { useState } from "react";
@@ -33,13 +38,23 @@ const allCategories: DrugCategory[] = [
 ];
 
 interface NetworkControlsProps {
+  /** Categories that are currently visible. */
   activeCategories: Set<string>;
+  /** Toggle one category in the active set. */
   onToggleCategory: (category: string) => void;
+  /** Zoom the graph in by one step. */
   onZoomIn: () => void;
+  /** Zoom the graph out by one step. */
   onZoomOut: () => void;
+  /** Reset the zoom to the default fit. */
   onZoomReset: () => void;
 }
 
+/**
+ * Render the network filter and zoom controls.
+ *
+ * @param props - See `NetworkControlsProps`.
+ */
 export function NetworkControls({
   activeCategories,
   onToggleCategory,

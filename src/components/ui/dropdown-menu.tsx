@@ -1,3 +1,9 @@
+/**
+ * shadcn/ui DropdownMenu composition built on `@base-ui/react/menu`.
+ * Marked `"use client"` because the primitive maintains focus,
+ * keyboard navigation, and sub-menu open state. Exposes the full
+ * Trigger/Content/Item/CheckboxItem/RadioItem/Group/Separator surface.
+ */
 "use client"
 
 import * as React from "react"

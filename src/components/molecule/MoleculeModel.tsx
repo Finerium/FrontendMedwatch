@@ -1,3 +1,8 @@
+/**
+ * Three.js group that draws the molecule itself (atoms + bonds). Marked
+ * `"use client"` because it runs inside the `@react-three/fiber` render
+ * loop using `useFrame` for per-frame rotation.
+ */
 "use client";
 
 import { useRef, useState, useMemo } from "react";
@@ -7,11 +12,20 @@ import * as THREE from "three";
 import { Molecule, ATOM_COLORS, ATOM_RADII } from "@/data/molecules";
 
 interface MoleculeModelProps {
+  /** Molecule definition (atoms + bonds) to draw. */
   molecule: Molecule;
+  /** Whether to auto-rotate the group every frame. */
   autoRotate: boolean;
+  /** Whether to render bond cylinders as wireframes. */
   wireframe: boolean;
 }
 
+/**
+ * Render the molecule mesh: spheres for atoms, oriented cylinders for
+ * bonds, plus a Drei `<Html>` tooltip for hovered atoms.
+ *
+ * @param props - See `MoleculeModelProps`.
+ */
 export function MoleculeModel({ molecule, autoRotate, wireframe }: MoleculeModelProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredAtom, setHoveredAtom] = useState<number | null>(null);

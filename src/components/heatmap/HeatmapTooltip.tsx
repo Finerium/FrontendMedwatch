@@ -1,18 +1,39 @@
+/**
+ * Floating tooltip rendered above the hovered heatmap cell. Marked
+ * `"use client"` because it positions itself in viewport coordinates
+ * relative to `window.innerWidth` at render time.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 
 interface HeatmapTooltipProps {
+  /**
+   * Pointer payload from the hovered cell, or null when no cell is
+   * focused (in which case the component renders nothing).
+   */
   info: {
+    /** Row label (drug name). */
     drug: string;
+    /** Column label (side-effect name). */
     sideEffect: string;
+    /** Cell frequency 0..100. */
     frequency: number;
+    /** Severity bucket: mild/moderate/severe. */
     severity: string;
+    /** Viewport X coordinate of the cell center. */
     x: number;
+    /** Viewport Y coordinate of the cell top. */
     y: number;
   } | null;
 }
 
+/**
+ * Render the contextual tooltip with drug, side effect, frequency, and
+ * severity chip. Returns null when `info` is null.
+ *
+ * @param props - See `HeatmapTooltipProps`.
+ */
 export function HeatmapTooltip({ info }: HeatmapTooltipProps) {
   if (!info) return null;
 

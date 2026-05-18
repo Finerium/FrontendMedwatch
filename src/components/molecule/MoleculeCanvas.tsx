@@ -1,3 +1,9 @@
+/**
+ * Three.js scene wrapper that renders an interactive 3D molecule.
+ * Marked `"use client"` because the entire `@react-three/fiber` canvas
+ * lives in the browser and reads the live theme to swap the lighting
+ * environment.
+ */
 "use client";
 
 import React, { Suspense, useRef } from "react";
@@ -8,11 +14,21 @@ import { Molecule } from "@/data/molecules";
 import { MoleculeModel } from "./MoleculeModel";
 
 interface MoleculeCanvasProps {
+  /** Molecule definition (atoms + bonds) to render. */
   molecule: Molecule;
+  /** Whether to spin the scene automatically. */
   autoRotate: boolean;
+  /** Whether to render bonds as wireframes. */
   wireframe: boolean;
 }
 
+/**
+ * Inner canvas implementation; the public export wraps it in `React.memo`
+ * so the Three.js scene does not rebuild when an unrelated prop changes
+ * on the parent.
+ *
+ * @param props - See `MoleculeCanvasProps`.
+ */
 function MoleculeCanvasInner({ molecule, autoRotate, wireframe }: MoleculeCanvasProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const controlsRef = useRef<any>(null);
@@ -46,5 +62,9 @@ function MoleculeCanvasInner({ molecule, autoRotate, wireframe }: MoleculeCanvas
   );
 }
 
+/**
+ * Public memoised canvas component. Re-renders only when the molecule
+ * or one of the two boolean controls changes.
+ */
 export const MoleculeCanvas = React.memo(MoleculeCanvasInner);
 export default MoleculeCanvas;

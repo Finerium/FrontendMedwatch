@@ -1,5 +1,12 @@
+/**
+ * Inline SVG icon set used by the nav-bar pills. Pure presentational
+ * component; stays a server component since it never reads runtime
+ * state. Adding a new nav icon means adding both the `NavIconName`
+ * literal in `src/lib/nav.ts` and a `case` branch below.
+ */
 import type { NavIconName } from "@/lib/nav";
 
+/** Default stroke geometry applied to every icon for visual consistency. */
 const props = {
   width: 18,
   height: 18,
@@ -11,6 +18,12 @@ const props = {
   strokeLinejoin: "round" as const,
 };
 
+/**
+ * Render one nav icon by name.
+ *
+ * @param props.name - One of the `NavIconName` literals.
+ * @returns Inline SVG or null when the name is unknown.
+ */
 export function NavIcon({ name }: { name: NavIconName }) {
   switch (name) {
     case "home":

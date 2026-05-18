@@ -1,3 +1,10 @@
+/**
+ * shadcn/ui Button primitive built on top of `@base-ui/react/button`.
+ * Marked `"use client"` because the underlying primitive registers its
+ * own keyboard and aria-pressed handlers. Variants are declared with
+ * `cva` and exported as `buttonVariants` for reuse by composite
+ * components.
+ */
 "use client"
 
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
@@ -42,6 +49,13 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Render a styled button. Forwards every prop to the Base-UI primitive.
+ *
+ * @param props.variant - One of the cva variant keys (default, outline,
+ *   secondary, ghost, destructive, link).
+ * @param props.size - One of the cva size keys.
+ */
 function Button({
   className,
   variant = "default",

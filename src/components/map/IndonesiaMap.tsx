@@ -1,3 +1,10 @@
+/**
+ * Indonesia province choropleth map. Marked `"use client"` because the
+ * SVG is rendered by `react-simple-maps`, which requires the browser
+ * DOM, and the pan/zoom plus tooltip state live in component state.
+ * The density gradient mirrors the heatmap palette so the two
+ * visualisations share a visual language.
+ */
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -30,6 +37,12 @@ const densityColors = [
   { threshold: 1.0, color: "#ef4444" },  // red-500 (Very High)
 ];
 
+/**
+ * Sample the density gradient at a 0..1 ratio.
+ *
+ * @param ratio - Normalised density value.
+ * @returns rgb() color string.
+ */
 function interpolateColor(ratio: number): string {
   const clamped = Math.min(Math.max(ratio, 0), 1);
   for (let i = 0; i < densityColors.length - 1; i++) {
@@ -48,11 +61,23 @@ function interpolateColor(ratio: number): string {
   return densityColors[densityColors.length - 1].color;
 }
 
+/**
+ * Parse a `#rrggbb` hex string into individual sRGB channel integers.
+ *
+ * @param hex - Six-digit hex color including the leading `#`.
+ */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const n = parseInt(hex.slice(1), 16);
   return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
 }
 
+/**
+ * Pick the right fill for a single province path.
+ *
+ * @param patientCount - Number of patients in the province.
+ * @param isHovered - Whether the province is currently hovered.
+ * @returns CSS color string.
+ */
 function getProvinceFill(
   patientCount: number,
   isHovered: boolean
@@ -62,10 +87,19 @@ function getProvinceFill(
   return interpolateColor(ratio);
 }
 
+/**
+ * Neutral fill for provinces without numeric data.
+ *
+ * @returns CSS color string.
+ */
 function getDefaultFill(): string {
   return "#6b7280"; // gray-500 for unmatched provinces
 }
 
+/**
+ * Render the interactive Indonesia map with pan/zoom controls and a
+ * floating tooltip.
+ */
 export function IndonesiaMap() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";

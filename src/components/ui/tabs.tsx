@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Tabs composition over `@base-ui/react/tabs`. Marked
+ * `"use client"` because the primitive owns focus, keyboard navigation,
+ * and the active panel state.
+ */
 "use client"
 
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"

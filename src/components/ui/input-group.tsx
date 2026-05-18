@@ -1,3 +1,9 @@
+/**
+ * shadcn/ui InputGroup composite that lets you decorate an `Input` or
+ * `Textarea` with addons (icons, buttons, badges). Marked `"use client"`
+ * because the slotted addons rely on data-attribute selectors that
+ * Next would otherwise statically optimise away.
+ */
 "use client"
 
 import * as React from "react"

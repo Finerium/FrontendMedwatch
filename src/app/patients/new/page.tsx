@@ -1,3 +1,10 @@
+/**
+ * Create-patient form. Marked `"use client"` because it manages a deep
+ * SOAP form state, runs numeric validation live (B03 fix), and pushes
+ * the user to the detail page once the backend POST returns. Required
+ * fields mirror the backend contract so a successful client submit is
+ * always accepted by the API.
+ */
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -11,6 +18,12 @@ import {
   type ObjectiveNumericKey,
 } from "@/lib/patient-validation";
 
+/**
+ * Return a blank SOAP form pre-filled with today's date so the bidan
+ * does not have to retype it for the common path.
+ *
+ * @returns Empty patient record sans id.
+ */
 function emptyPatient(): Omit<Patient, "id"> {
   return {
     nama: "",
@@ -34,6 +47,11 @@ function emptyPatient(): Omit<Patient, "id"> {
   };
 }
 
+/**
+ * Render the SOAP creation wizard. Live-validates the Objective block,
+ * surfaces inline error messages in Bahasa Indonesia, and POSTs the
+ * record once the user clicks "Simpan SOAP".
+ */
 export default function NewPatientPage() {
   const router = useRouter();
   const [form, setForm] = useState<Omit<Patient, "id">>(emptyPatient);
@@ -415,6 +433,13 @@ const twoColStyle: React.CSSProperties = {
   marginBottom: 12,
 };
 
+/**
+ * Labelled field wrapper used by every input on the form.
+ *
+ * @param props.label - Uppercase mono caption above the control.
+ * @param props.children - The actual input/textarea control.
+ * @param props.error - Optional error string rendered below the control.
+ */
 function Field({
   label,
   children,

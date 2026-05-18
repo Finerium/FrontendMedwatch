@@ -1,3 +1,11 @@
+/**
+ * MedWatch wordmark plus a heart-rate pulse glyph. Pure presentational
+ * component used by the nav bar; no client state required, so it stays
+ * a server component.
+ *
+ * @param props.size - Logo height in pixels (defaults to 22). The
+ *   wordmark scales as a function of this value.
+ */
 export function Logo({ size = 22 }: { size?: number }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

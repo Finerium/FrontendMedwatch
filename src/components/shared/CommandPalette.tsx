@@ -1,3 +1,8 @@
+/**
+ * Cmd/Ctrl-K command palette that exposes navigation shortcuts and a
+ * handful of quick actions. Marked `"use client"` because the global
+ * keyboard listener and the navigation hooks all run in the browser.
+ */
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -28,8 +33,11 @@ import {
 } from "lucide-react";
 
 interface NavItem {
+  /** Label shown in the command list. */
   label: string;
+  /** App-router path to navigate to. */
   href: string;
+  /** Lucide icon component rendered to the left. */
   icon: React.ComponentType<{ className?: string }>;
 }
 
@@ -48,8 +56,11 @@ const pages: NavItem[] = [
 ];
 
 interface QuickAction {
+  /** Label shown in the command list. */
   label: string;
+  /** Lucide icon component rendered to the left. */
   icon: React.ComponentType<{ className?: string }>;
+  /** Discriminator that selects what runs on enter. */
   action: "toggle-theme" | "search-drug" | "add-patient";
 }
 
@@ -59,6 +70,10 @@ const quickActions: QuickAction[] = [
   { label: "Add Patient", icon: UserPlus, action: "add-patient" },
 ];
 
+/**
+ * Render the command palette dialog and register the global Cmd/Ctrl-K
+ * shortcut that toggles it.
+ */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();

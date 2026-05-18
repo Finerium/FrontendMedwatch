@@ -1,14 +1,25 @@
+/**
+ * Generic frosted-glass card used as a layout primitive. Marked
+ * `"use client"` only when the `hover` variant is requested, which
+ * upgrades the wrapper to a Framer Motion `motion.div`.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 interface GlassCardProps {
+  /** Card contents. */
   children: React.ReactNode;
+  /** Style preset: default, elevated, or subtle. */
   variant?: "default" | "elevated" | "subtle";
+  /** When true, the card lifts on hover with a small spring. */
   hover?: boolean;
+  /** Extra tailwind class names appended to the variant defaults. */
   className?: string;
+  /** Forwarded ARIA role for landmark cards. */
   role?: React.AriaRole;
+  /** Forwarded ARIA label. */
   "aria-label"?: string;
 }
 
@@ -45,6 +56,12 @@ const hoverClasses = cn(
   "hover:shadow-xl"
 );
 
+/**
+ * Render the glass card with the requested variant. Switches to a
+ * Framer Motion wrapper when `hover` is true.
+ *
+ * @param props - See `GlassCardProps`.
+ */
 export function GlassCard({
   children,
   variant = "default",

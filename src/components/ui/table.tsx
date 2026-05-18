@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Table primitives (Table, TableHeader, TableBody, TableRow,
+ * TableHead, TableCell, TableCaption). Marked `"use client"` only to
+ * keep dark-mode utility branches alive at runtime.
+ */
 "use client"
 
 import * as React from "react"

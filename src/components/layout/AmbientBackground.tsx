@@ -1,5 +1,16 @@
+/**
+ * Decorative four-blob ambient background used by the legacy sidebar
+ * shell. Marked `"use client"` only because the inline keyframe
+ * animations are driven by class-based dark-mode toggling that must
+ * react to runtime theme changes.
+ */
 "use client";
 
+/**
+ * Render two layered sets of soft blurred blobs, one for dark mode and
+ * one for light mode. The wrapping container is `pointer-events-none`
+ * so the decoration never intercepts clicks.
+ */
 export function AmbientBackground() {
   return (
     <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">

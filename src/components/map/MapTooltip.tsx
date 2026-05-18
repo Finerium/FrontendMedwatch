@@ -1,12 +1,21 @@
+/**
+ * Floating tooltip rendered over the Indonesia map. Marked
+ * `"use client"` because the tooltip auto-flips to avoid the map's
+ * right/bottom edges based on its current pointer position.
+ */
 "use client";
 
 import { ProvinceData } from "@/data/indonesia-map";
 import { cn } from "@/lib/utils";
 
 interface MapTooltipProps {
+  /** Hovered province record, or null when no province is focused. */
   province: ProvinceData | null;
+  /** Pointer position inside the map container. */
   position: { x: number; y: number };
+  /** Map container width in pixels (used to decide left/right anchoring). */
   containerWidth?: number;
+  /** Map container height in pixels (used to decide top/bottom anchoring). */
   containerHeight?: number;
 }
 
@@ -22,6 +31,12 @@ const densityColors: Record<ProvinceData["density"], string> = {
   "Very High": "bg-red-500/20 text-red-400 dark:bg-red-500/20 dark:text-red-300",
 };
 
+/**
+ * Render the province tooltip with clinic and patient counts plus a
+ * density chip. Returns null when no province is supplied.
+ *
+ * @param props - See `MapTooltipProps`.
+ */
 export function MapTooltip({ province, position, containerWidth = 9999, containerHeight = 9999 }: MapTooltipProps) {
   if (!province) return null;
 

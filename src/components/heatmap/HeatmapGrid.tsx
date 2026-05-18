@@ -1,3 +1,9 @@
+/**
+ * Animated heatmap grid (drug rows × side-effect columns). Marked
+ * `"use client"` because cells are draggable through Framer Motion,
+ * row order animates with layout, and an observer watches the html
+ * `class` list to keep cell colors in sync with the theme toggle.
+ */
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -6,14 +12,28 @@ import { cn } from "@/lib/utils";
 import { HeatmapData } from "@/data/heatmap";
 
 interface HeatmapGridProps {
+  /** Underlying matrix bundle (drugs, side effects, frequencies, severities). */
   data: HeatmapData;
+  /** Column label to sort rows by, or null for default order. */
   sortBy: string | null;
+  /** Whether to render the numeric frequency inside each cell. */
   showValues: boolean;
+  /** Whether to ring-highlight cells with frequency >50. */
   highlightHigh: boolean;
+  /** Search filter restricted to drug names. */
   searchQuery: string;
+  /** Callback fired when the hovered cell changes (null = no cell). */
   onCellHover: (info: { drug: string; sideEffect: string; frequency: number; severity: string; x: number; y: number } | null) => void;
 }
 
+/**
+ * Pick a per-cell background color based on frequency and the active
+ * theme. Higher frequencies fade towards saturated purple/blue.
+ *
+ * @param frequency - Cell value 0..100.
+ * @param isDark - True when the page is in dark mode.
+ * @returns CSS `rgba(...)` color string.
+ */
 function getCellColor(frequency: number, isDark: boolean): string {
   if (frequency === 0) return isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)";
   const t = frequency / 100;
@@ -34,6 +54,11 @@ function getCellColor(frequency: number, isDark: boolean): string {
   }
 }
 
+/**
+ * Render the row-major heatmap grid plus the rotated column headers.
+ *
+ * @param props - See `HeatmapGridProps`.
+ */
 export function HeatmapGrid({ data, sortBy, showValues, highlightHigh, searchQuery, onCellHover }: HeatmapGridProps) {
   const [isDark, setIsDark] = useState(false);
 

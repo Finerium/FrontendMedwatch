@@ -1,3 +1,7 @@
+/**
+ * Sidebar list of available molecules. Marked `"use client"` because
+ * the selected state is a controlled prop pushed back via `onSelect`.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -5,11 +9,19 @@ import { Molecule } from "@/data/molecules";
 import { Atom } from "lucide-react";
 
 interface MoleculeSelectorProps {
+  /** All molecules in the catalog. */
   molecules: Molecule[];
+  /** Id of the currently selected molecule. */
   selected: string;
+  /** Notify the parent that a new molecule was chosen. */
   onSelect: (id: string) => void;
 }
 
+/**
+ * Render a vertical list of molecule pickers.
+ *
+ * @param props - See `MoleculeSelectorProps`.
+ */
 export function MoleculeSelector({ molecules, selected, onSelect }: MoleculeSelectorProps) {
   return (
     <div className="space-y-2">

@@ -1,3 +1,8 @@
+/**
+ * Static legend that maps drug category colors and severity edge colors
+ * for the network graph. Marked `"use client"` only to keep dark-mode
+ * utility branches alive.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -35,6 +40,9 @@ const severityLevels = [
   { label: "Major", color: "#ef4444", width: 3 },
 ];
 
+/**
+ * Render the category color swatches and severity edge legend.
+ */
 export function NetworkLegend() {
   return (
     <div

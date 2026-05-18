@@ -1,3 +1,10 @@
+/**
+ * Patient roster with sticky SOAP detail panel. Marked `"use client"`
+ * because the list filter, selected-row state, and the slide-in detail
+ * panel all live in component state. The patient list rendered here is
+ * already returned newest-first by the backend (B07 fix), so the UI
+ * sorts only when the search filter is active.
+ */
 "use client";
 
 import Link from "next/link";
@@ -6,6 +13,13 @@ import { api } from "@/lib/api";
 import type { Patient, PatientObjective } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
 
+/**
+ * Infer gender code (L/P) from Indonesian honorifics so we can render an
+ * appropriate label in the detail panel.
+ *
+ * @param nama - Raw patient name.
+ * @returns "L", "P", or empty string when unknown.
+ */
 function inferGender(nama: string): "L" | "P" | "" {
   const n = (nama || "").trim().toLowerCase();
   if (n.startsWith("ny.") || n.startsWith("nona") || n.startsWith("ny ")) return "P";
@@ -14,6 +28,13 @@ function inferGender(nama: string): "L" | "P" | "" {
   return "";
 }
 
+/**
+ * Flatten the SOAP Objective block into a `[label, value]` list that the
+ * presentation layer can iterate over.
+ *
+ * @param o - Objective block from a patient record.
+ * @returns Label/value pairs in display order.
+ */
 function objectiveFields(o: PatientObjective | undefined): [string, string][] {
   if (!o) return [];
   const out: [string, string][] = [];
@@ -27,6 +48,15 @@ function objectiveFields(o: PatientObjective | undefined): [string, string][] {
   return out;
 }
 
+/**
+ * Render one section of the SOAP detail panel (Subjective, Objective,
+ * Assessment, Plan).
+ *
+ * @param props.letter - SOAP letter badge (S/O/A/P).
+ * @param props.title - Section heading.
+ * @param props.content - Free-text body for the section.
+ * @param props.fields - Extra key/value chips rendered under the body.
+ */
 function SoapBlock({
   letter,
   title,
@@ -111,6 +141,11 @@ function SoapBlock({
   );
 }
 
+/**
+ * Render the patient roster plus the slide-in SOAP detail panel. The
+ * backend already returns records newest-first (B07), so this component
+ * only adds the search filter and selection state on top.
+ */
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loaded, setLoaded] = useState(false);

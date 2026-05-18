@@ -1,3 +1,10 @@
+/**
+ * shadcn/ui AlertDialog composition wired on top of
+ * `@base-ui/react/alert-dialog`. Marked `"use client"` because the
+ * primitive owns focus trapping, ARIA wiring, and the open/close state.
+ * Exposes the standard set of sub-components: Root, Trigger, Portal,
+ * Backdrop, Content, Title, Description, Actions, Cancel.
+ */
 "use client"
 
 import * as React from "react"

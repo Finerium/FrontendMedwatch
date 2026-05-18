@@ -1,7 +1,18 @@
+/**
+ * Zustand auth store. Owns the in-memory copy of the current user identity
+ * and exposes login/logout/fetchMe so any client component can react to
+ * session changes. The actual token lives in an httpOnly cookie set by the
+ * Vercel proxy, so this store never holds raw credentials.
+ *
+ * Key exports: `useAuthStore`, the `Role` and `User` types, and the
+ * `landingForRole` helper used by the login redirect.
+ */
 import { create } from "zustand";
 
+/** The three demo roles the system supports. */
 export type Role = "tenaga_kesehatan" | "masyarakat" | "admin";
 
+/** Public user identity shape returned by /api/auth/me. */
 export type User = {
   username: string;
   role: Role;
@@ -17,6 +28,11 @@ type AuthStore = {
   fetchMe: () => Promise<void>;
 };
 
+/**
+ * Global Zustand auth store. `hydrated` becomes true after the first call
+ * to `fetchMe` so the shell can avoid flashing protected routes before the
+ * cookie is verified.
+ */
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isLoading: false,
@@ -67,6 +83,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 }));
 
+/**
+ * Map a role to the page the user should land on after a successful login.
+ * Mirrors the same routing decision in `src/proxy.ts` so middleware and
+ * client agree on where each role belongs.
+ *
+ * @param role - Role string from the JWT/me response.
+ * @returns Absolute path under the Next.js app router.
+ */
 export function landingForRole(role: Role): string {
   if (role === "masyarakat") return "/drug-search";
   if (role === "admin") return "/admin/dashboard";

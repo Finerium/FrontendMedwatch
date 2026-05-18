@@ -1,3 +1,9 @@
+/**
+ * Edit-patient SOAP form. Marked `"use client"` because it hydrates a
+ * dynamic-route record on mount, runs live numeric validation (B03),
+ * and ships PUT/DELETE mutations through the proxy. Uses `useParams`
+ * for the dynamic `[id]` segment.
+ */
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
@@ -13,6 +19,11 @@ import {
   type ObjectiveNumericKey,
 } from "@/lib/patient-validation";
 
+/**
+ * Load and edit a single patient SOAP record. Provides PUT (save) and
+ * DELETE (remove) mutations with confirmation, then routes back to the
+ * roster on success.
+ */
 export default function EditPatientPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -452,6 +463,13 @@ const twoColStyle: React.CSSProperties = {
   marginBottom: 12,
 };
 
+/**
+ * Labelled field wrapper used by every input on the form.
+ *
+ * @param props.label - Uppercase mono caption above the control.
+ * @param props.children - The actual input/textarea control.
+ * @param props.error - Optional error string rendered below the control.
+ */
 function Field({
   label,
   children,

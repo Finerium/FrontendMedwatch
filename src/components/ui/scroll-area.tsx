@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui ScrollArea primitive built on `@base-ui/react/scroll-area`.
+ * Marked `"use client"` because the primitive measures scroll geometry
+ * at runtime.
+ */
 "use client"
 
 import * as React from "react"

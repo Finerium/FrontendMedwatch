@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Label primitive. Marked `"use client"` because the
+ * peer-disabled selector relies on Tailwind utilities that resolve at
+ * render time inside form groups.
+ */
 "use client"
 
 import * as React from "react"

@@ -1,12 +1,24 @@
+/**
+ * Side panel that summarises the rendered molecule. Marked
+ * `"use client"` because it uses `useMemo` to derive per-element and
+ * per-bond counts without recomputing on every render.
+ */
 "use client";
 
 import { useMemo } from "react";
 import { Molecule, ATOM_COLORS } from "@/data/molecules";
 
 interface MoleculeInfoProps {
+  /** Molecule definition to summarise. */
   molecule: Molecule;
 }
 
+/**
+ * Render the molecule metadata: name, formula, description, per-element
+ * counts, and per-bond-order counts.
+ *
+ * @param props - See `MoleculeInfoProps`.
+ */
 export function MoleculeInfo({ molecule }: MoleculeInfoProps) {
   const stats = useMemo(() => {
     const elementCounts: Record<string, number> = {};

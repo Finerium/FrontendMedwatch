@@ -1,3 +1,15 @@
+/**
+ * Login page. Marked `"use client"` because the form needs controlled
+ * inputs, the parallax shapes follow the mouse cursor, and the auth
+ * mutation runs entirely in the browser via `useAuthStore.login`.
+ *
+ * `force-dynamic` prevents Next from caching this route, which would
+ * otherwise serve the wrong CSRF state to a second visitor.
+ *
+ * The demo preset cards (B09 visibility fix) auto-fill username and
+ * password so the kelompok B5 demo never fails because of mistyped
+ * credentials.
+ */
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -6,6 +18,7 @@ import { useAuthStore, landingForRole, type Role } from "@/lib/auth-store";
 
 export const dynamic = "force-dynamic";
 
+/** Demo credential preset displayed below the form. */
 type Preset = {
   label: string;
   roleLabel: string;
@@ -15,6 +28,7 @@ type Preset = {
   color: string;
 };
 
+/** Three preset accounts wired into the login UI (B09 fix). */
 const PRESETS: Preset[] = [
   {
     label: "Demo Bidan",
@@ -42,6 +56,12 @@ const PRESETS: Preset[] = [
   },
 ];
 
+/**
+ * Page-level wrapper. `useSearchParams` requires a Suspense boundary at
+ * the App-Router build layer; the inner component handles all the state.
+ *
+ * @returns Suspense-wrapped login screen.
+ */
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -50,6 +70,11 @@ export default function LoginPage() {
   );
 }
 
+/**
+ * Interactive part of the login screen. Handles parallax, controlled form
+ * state, and the post-login redirect using the `from` search param when
+ * present so the user lands where they originally requested.
+ */
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();

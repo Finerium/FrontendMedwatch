@@ -1,8 +1,20 @@
+/**
+ * Masyarakat self-service profile. Marked `"use client"` because the
+ * greeting reads the live auth store and renders user-specific copy.
+ * The "obat saya" and "riwayat pengecekan" panels are still static seed
+ * data; they will be wired to the backend in a subsequent wave.
+ */
 "use client";
 
 import { useEffect } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 
+/**
+ * Static key/value display row used inside the identity card.
+ *
+ * @param props.k - Label text.
+ * @param props.v - Value (string or rendered chip).
+ */
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0" }}>
@@ -12,6 +24,10 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   );
 }
 
+/**
+ * Render the masyarakat profile card and the supporting "obat saya" /
+ * "riwayat pengecekan" panels.
+ */
 export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);

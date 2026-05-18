@@ -1,7 +1,15 @@
+/**
+ * Loading placeholder shown while the SVG topology is fetched. Marked
+ * `"use client"` to keep the dark-mode utility branches alive.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Render a 16:9 shimmer card with a centered spinner and Indonesian
+ * loading copy.
+ */
 export function MapSkeleton() {
   return (
     <div

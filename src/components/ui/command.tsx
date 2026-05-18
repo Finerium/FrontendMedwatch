@@ -1,3 +1,10 @@
+/**
+ * shadcn/ui Command primitives layered on top of `cmdk` and the Dialog
+ * primitive. Marked `"use client"` because the searchable command list
+ * relies on browser focus and keyboard navigation. Exposes the full
+ * Command/CommandDialog/CommandInput/CommandList/CommandGroup/CommandItem
+ * surface area used by the global command palette.
+ */
 "use client"
 
 import * as React from "react"

@@ -1,3 +1,6 @@
+/**
+ * shadcn/ui Textarea primitive. Pure server component; no client state.
+ */
 import * as React from "react"
 
 import { cn } from "@/lib/utils"

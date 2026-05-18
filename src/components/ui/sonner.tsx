@@ -1,3 +1,8 @@
+/**
+ * Theme-aware Sonner toaster shell used by `ClientShell`. Marked
+ * `"use client"` because `useTheme` and the toaster portal need to run
+ * in the browser.
+ */
 "use client"
 
 import { useTheme } from "next-themes"

@@ -1,3 +1,8 @@
+/**
+ * Side panel summary for the Indonesia map. Marked `"use client"`
+ * because it consumes the `AnimatedCounter` (which uses
+ * `requestAnimationFrame` in the browser).
+ */
 "use client";
 
 import { provinceData } from "@/data/indonesia-map";
@@ -13,12 +18,21 @@ const highestProvince = provinceData.reduce((prev, curr) =>
 );
 
 interface StatItemProps {
+  /** Lucide icon (or any node) rendered in the colored tile. */
   icon: React.ReactNode;
+  /** Indonesian label rendered above the value. */
   label: string;
+  /** Numeric value (rendered through `AnimatedCounter`). */
   value?: number;
+  /** Static string value (used when `value` is omitted). */
   text?: string;
 }
 
+/**
+ * One row of the map stats card.
+ *
+ * @param props - See `StatItemProps`.
+ */
 function StatItem({ icon, label, value, text }: StatItemProps) {
   return (
     <div className="flex items-center gap-3">
@@ -44,6 +58,9 @@ function StatItem({ icon, label, value, text }: StatItemProps) {
   );
 }
 
+/**
+ * Render the four-row stats card next to the map.
+ */
 export function MapStats() {
   return (
     <div

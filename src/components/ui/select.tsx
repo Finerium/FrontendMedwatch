@@ -1,3 +1,8 @@
+/**
+ * shadcn/ui Select composition over `@base-ui/react/select`. Marked
+ * `"use client"` because the primitive manages an internal popper,
+ * focus management, and keyboard navigation.
+ */
 "use client"
 
 import * as React from "react"

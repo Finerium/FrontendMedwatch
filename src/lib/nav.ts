@@ -1,5 +1,15 @@
+/**
+ * Static role-keyed navigation manifest consumed by the shell NavBar.
+ * Centralising the menus here keeps the desktop top nav and the mobile
+ * bottom nav perfectly in sync; B01 (admin-home nav to Scraper) was a
+ * regression caused by editing only one menu copy, so all three role
+ * menus now live in this single source of truth.
+ *
+ * Key exports: `NavIconName`, `NavItem`, and the `NAV_ITEMS` map.
+ */
 import type { Role } from "@/lib/auth-store";
 
+/** Names of every nav-bar icon supported by `NavIcon`. */
 export type NavIconName =
   | "home"
   | "search"
@@ -10,6 +20,7 @@ export type NavIconName =
   | "gear"
   | "spider";
 
+/** Single entry in the sidebar/topbar navigation. */
 export type NavItem = {
   id: string;
   label: string;
@@ -17,6 +28,7 @@ export type NavItem = {
   href: string;
 };
 
+/** Per-role menus. Order in the array is the on-screen order. */
 export const NAV_ITEMS: Record<Role, NavItem[]> = {
   tenaga_kesehatan: [
     { id: "dashboard", label: "Beranda", icon: "home", href: "/dashboard" },

@@ -1,3 +1,9 @@
+/**
+ * Top/bottom navigation bar that adapts to viewport width. Marked
+ * `"use client"` because it reads the live pathname, the auth store,
+ * and listens to window resize to swap between desktop and mobile
+ * variants.
+ */
 "use client";
 
 import Link from "next/link";
@@ -9,6 +15,13 @@ import { NavIcon } from "./NavIcon";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
 
+/**
+ * Whether a nav item should render as active given the current pathname.
+ *
+ * @param pathname - Pathname from `usePathname`.
+ * @param item - One nav entry from the manifest.
+ * @returns True if the item matches the current path or a child route.
+ */
 function isActive(pathname: string, item: NavItem): boolean {
   if (item.href === "/dashboard" && pathname === "/dashboard") return true;
   if (item.href === "/admin/dashboard" && pathname === "/admin/dashboard") return true;
@@ -17,6 +30,13 @@ function isActive(pathname: string, item: NavItem): boolean {
   return false;
 }
 
+/**
+ * Desktop top-bar nav. Includes pill links, theme toggle, and the user
+ * avatar/logout button.
+ *
+ * @param props.items - Role-appropriate nav entries.
+ * @param props.user - Current authenticated user.
+ */
 function TopNav({ items, user }: { items: NavItem[]; user: User }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -113,6 +133,12 @@ function TopNav({ items, user }: { items: NavItem[]; user: User }) {
   );
 }
 
+/**
+ * Mobile bottom-bar nav. Renders the same role items as the desktop
+ * variant but stacks icons over labels.
+ *
+ * @param props.items - Role-appropriate nav entries.
+ */
 function BottomNav({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
   return (
@@ -169,6 +195,12 @@ function BottomNav({ items }: { items: NavItem[] }) {
   );
 }
 
+/**
+ * Public nav-bar entry point. Picks the right items for the role and
+ * swaps between top and bottom variants based on viewport width.
+ *
+ * @param props.user - The hydrated user object from the auth store.
+ */
 export function NavBar({ user }: { user: User }) {
   const items = NAV_ITEMS[user.role] ?? NAV_ITEMS.tenaga_kesehatan;
   const [isMobile, setIsMobile] = useState(false);

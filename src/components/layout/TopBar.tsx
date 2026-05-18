@@ -1,3 +1,8 @@
+/**
+ * Legacy top bar used by `ClientShell`. Marked `"use client"` because it
+ * reads the live pathname to pick a page title and detects the platform
+ * to render the correct keyboard shortcut hint.
+ */
 "use client";
 
 import { useState } from "react";
@@ -5,8 +10,8 @@ import { usePathname } from "next/navigation";
 import { Menu, Command } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 interface TopBarProps {
+  /** Open the mobile sidebar drawer. */
   onMenuClick: () => void;
 }
 
@@ -26,7 +31,12 @@ const pageTitles: Record<string, string> = {
   "/export": "Export PDF",
 };
 
-// ─── TopBar component ───────────────────────────────────────────────────────
+/**
+ * Render the top bar with the current page title and a command-palette
+ * shortcut chip.
+ *
+ * @param props - See `TopBarProps`.
+ */
 export function TopBar({ onMenuClick }: TopBarProps) {
   const pathname = usePathname();
   const [isMac] = useState(() => {

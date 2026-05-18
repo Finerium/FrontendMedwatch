@@ -1,9 +1,16 @@
+/**
+ * Multi-report PDF export hub (B04 expansion). Marked `"use client"`
+ * because the report selector, date range, and patient picker drive
+ * client-side state and trigger binary downloads through `downloadBlob`.
+ * Fixes B04 by exposing more than the previous SOAP-only export option.
+ */
 "use client";
 
 import { useEffect, useState } from "react";
 import { api, downloadBlob } from "@/lib/api";
 import type { Patient } from "@/lib/patient-format";
 
+/** One report-type tile on the left side of the page. */
 type ReportType = {
   id: "rekam-medis" | "laporan-bulanan" | "efek-samping" | "inventaris";
   label: string;
@@ -17,6 +24,11 @@ const TYPES: ReportType[] = [
   { id: "inventaris", label: "Inventaris obat", desc: "Daftar obat, kategori, dosis, dan peringatan" },
 ];
 
+/**
+ * Render the four-report wizard plus a static "paper" preview. Picks
+ * the right backend endpoint and filename based on the selected report
+ * type and any contextual filters (patient or month).
+ */
 export default function ExportPdfPage() {
   const [type, setType] = useState<ReportType["id"]>("rekam-medis");
   const [from, setFrom] = useState("2026-04-01");

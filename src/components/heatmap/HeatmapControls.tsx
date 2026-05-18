@@ -1,20 +1,40 @@
+/**
+ * Filter and display toggles rendered above the heatmap grid. Marked
+ * `"use client"` because every control fires a parent callback that
+ * updates client-side state.
+ */
 "use client";
 
 import { cn } from "@/lib/utils";
 import { Search, AlertTriangle, Eye, ArrowUpDown } from "lucide-react";
 
 interface HeatmapControlsProps {
+  /** Currently selected side-effect column, or null for default ordering. */
   sortBy: string | null;
+  /** Whether numeric values are rendered inside cells. */
   showValues: boolean;
+  /** Whether high-frequency cells are highlighted with a ring. */
   highlightHigh: boolean;
+  /** Current drug-name filter string. */
   searchQuery: string;
+  /** All side-effect column names (populates the sort dropdown). */
   sideEffects: string[];
+  /** Notify the parent that the sort column changed. */
   onSortChange: (value: string | null) => void;
+  /** Toggle the in-cell number display. */
   onToggleValues: () => void;
+  /** Toggle the high-frequency highlight ring. */
   onToggleHighlight: () => void;
+  /** Notify the parent that the filter text changed. */
   onSearchChange: (value: string) => void;
 }
 
+/**
+ * Render the heatmap toolbar (search, sort dropdown, highlight toggle,
+ * value toggle).
+ *
+ * @param props - See `HeatmapControlsProps`.
+ */
 export function HeatmapControls({
   sortBy,
   showValues,

@@ -1,8 +1,18 @@
+/**
+ * Light/dark theme toggle. Marked `"use client"` because it uses
+ * `useTheme` and waits for hydration so the initial server render does
+ * not flash the wrong icon.
+ */
 "use client";
 
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
+/**
+ * Render a pill switch that flips between light and dark themes.
+ * The current theme is mirrored as a small label so users can confirm
+ * which mode is active.
+ */
 export function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

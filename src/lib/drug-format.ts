@@ -1,8 +1,14 @@
 /**
- * Map backend drug payload (Indonesian schema from anggota4) to the display
- * shape expected by the redesigned drug search and safety checker pages.
+ * Adapter between the Indonesian backend drug schema (built by anggota4)
+ * and the camelCase display shape consumed by the redesigned drug search
+ * and safety checker pages. Keeping the translation here means the UI can
+ * be reskinned without touching the backend payload contract.
+ *
+ * Key exports: `BackendDrug`, `DisplayDrug`, `slugifyDrugId`, and
+ * `backendToDisplayDrug`.
  */
 
+/** Shape returned by GET /api/drugs/* (Indonesian field names). */
 export type BackendDrug = {
   nama_obat: string;
   alias?: string[];
@@ -17,6 +23,7 @@ export type BackendDrug = {
   efek_samping?: string[];
 };
 
+/** UI-side drug shape consumed by drug search, comparison, and safety. */
 export type DisplayDrug = {
   id: string;
   name: string;
@@ -37,10 +44,27 @@ const OTC_KATEGORI = new Set([
   "vitamin dan mineral",
 ]);
 
+/**
+ * Convert a free-form drug name into a URL-safe identifier used as the
+ * stable React key and (where applicable) the route parameter.
+ *
+ * @param name - Drug name as it appears in the backend payload.
+ * @returns Lowercase, hyphenated, ASCII-only slug.
+ */
 export function slugifyDrugId(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
 }
 
+/**
+ * Translate a backend drug payload into the camelCase display shape.
+ * Popularity is synthesised from the original list index so the most
+ * recent backend ordering is preserved when the UI sorts by popularity.
+ *
+ * @param b - Backend payload row.
+ * @param idx - Zero-based position in the original list; used to derive
+ *   the synthetic popularity score.
+ * @returns DisplayDrug ready for the search/comparison UI.
+ */
 export function backendToDisplayDrug(b: BackendDrug, idx = 0): DisplayDrug {
   const generic =
     (b.alias && b.alias.length > 0 ? b.alias[0] : "") ||

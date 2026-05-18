@@ -1,13 +1,18 @@
 /**
- * Client-side validation for patient SOAP numeric medical fields (B03).
- * Mirrors the server-side ranges in api/routes/patient_routes.py so that
- * accepted client input is always accepted by the backend and vice versa.
+ * Client-side validation for patient SOAP numeric medical fields (bug
+ * B03 in the mission register). Ranges mirror the server-side checks in
+ * `api/routes/patient_routes.py` so any value accepted by this module is
+ * also accepted by the backend. All user-facing messages are in Bahasa
+ * Indonesia per the project locale rules.
  *
- * All user-facing messages are Bahasa Indonesia.
+ * Key exports: `ObjectiveNumericKey`, `NUMERIC_RANGES`,
+ * `SYSTOLIC_RANGE`, `DIASTOLIC_RANGE`, `validateField`,
+ * `validateObjective`.
  */
 
 import type { PatientObjective } from "./patient-format";
 
+/** Numeric SOAP fields handled by this validator. */
 export type ObjectiveNumericKey =
   | "tekanan_darah"
   | "bb_kg"
@@ -19,6 +24,11 @@ export type ObjectiveNumericKey =
 
 type Range = { min: number; max: number; label: string; step: number };
 
+/**
+ * Allowed ranges for every numeric SOAP field except tekanan_darah
+ * (composite systolic/diastolic). Numbers are clinically conservative
+ * adult+anak limits used by faskes 1 practice.
+ */
 export const NUMERIC_RANGES: Record<Exclude<ObjectiveNumericKey, "tekanan_darah">, Range> = {
   bb_kg: { min: 1, max: 300, label: "BB (kg)", step: 0.1 },
   tb_cm: { min: 30, max: 300, label: "TB (cm)", step: 0.1 },
@@ -28,7 +38,9 @@ export const NUMERIC_RANGES: Record<Exclude<ObjectiveNumericKey, "tekanan_darah"
   respirasi: { min: 5, max: 80, label: "Respirasi", step: 1 },
 };
 
+/** Acceptable systolic blood pressure range (mmHg). */
 export const SYSTOLIC_RANGE = { min: 60, max: 250 };
+/** Acceptable diastolic blood pressure range (mmHg). */
 export const DIASTOLIC_RANGE = { min: 30, max: 160 };
 
 const TD_PATTERN = /^\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*$/;

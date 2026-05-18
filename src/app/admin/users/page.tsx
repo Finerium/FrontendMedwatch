@@ -1,8 +1,14 @@
+/**
+ * Admin user roster. Marked `"use client"` because it fetches the live
+ * list from `/api/admin/users` on mount and renders skeletons until the
+ * response lands.
+ */
 "use client";
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
+/** User record displayed in the admin roster. */
 type AdminUser = {
   username: string;
   role: "tenaga_kesehatan" | "masyarakat" | "admin";
@@ -12,6 +18,10 @@ type AdminUser = {
   status?: "active" | "pending";
 };
 
+/**
+ * Render the registered-user list with role chips and status pills.
+ * Surfaces backend errors as a single message above the table.
+ */
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loaded, setLoaded] = useState(false);

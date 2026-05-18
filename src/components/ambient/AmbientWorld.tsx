@@ -1,7 +1,15 @@
+/**
+ * Background canvas decoration that renders a slow ambient scene
+ * (pond, capybaras, cherry petals, plants) behind every page. Marked
+ * `"use client"` because the entire animation runs on a 2D canvas
+ * driven by `requestAnimationFrame` and reacts to mouse/touch input.
+ * Disabled by passing `enabled={false}`.
+ */
 "use client";
 
 import { useEffect, useRef } from "react";
 
+/** Individual capybara sprite state. */
 type Capy = {
   x: number;
   y: number;
@@ -56,6 +64,13 @@ type State = {
   dpr: number;
 };
 
+/**
+ * Mount a full-viewport canvas that runs the ambient scene. Cleans up
+ * the animation frame and DOM listeners on unmount.
+ *
+ * @param props.enabled - When false, returns null so the canvas is
+ *   never inserted (used by reduced-motion contexts).
+ */
 export function AmbientWorld({ enabled = true }: { enabled?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef<State>({
