@@ -5,20 +5,20 @@ import { api, downloadBlob } from "@/lib/api";
 import type { Patient } from "@/lib/patient-format";
 
 type ReportType = {
-  id: "rekap-bulanan" | "efek-samping" | "soap-pasien" | "inventaris";
+  id: "rekam-medis" | "laporan-bulanan" | "efek-samping" | "inventaris";
   label: string;
   desc: string;
 };
 
 const TYPES: ReportType[] = [
-  { id: "rekap-bulanan", label: "Rekap kunjungan bulanan", desc: "Total kunjungan, demografi, top keluhan" },
-  { id: "efek-samping", label: "Laporan efek samping", desc: "Adverse drug reactions per pasien" },
-  { id: "soap-pasien", label: "Riwayat SOAP per pasien", desc: "Cetak rekam medis lengkap" },
-  { id: "inventaris", label: "Skrining obat", desc: "Frekuensi peresepan + interaksi" },
+  { id: "rekam-medis", label: "Riwayat SOAP per pasien", desc: "Cetak rekam medis lengkap satu pasien" },
+  { id: "laporan-bulanan", label: "Rekap kunjungan bulanan", desc: "Total kunjungan, demografi, top keluhan" },
+  { id: "efek-samping", label: "Laporan efek samping obat", desc: "Top efek samping dan severitas per obat" },
+  { id: "inventaris", label: "Inventaris obat", desc: "Daftar obat, kategori, dosis, dan peringatan" },
 ];
 
 export default function ExportPdfPage() {
-  const [type, setType] = useState<ReportType["id"]>("rekap-bulanan");
+  const [type, setType] = useState<ReportType["id"]>("rekam-medis");
   const [from, setFrom] = useState("2026-04-01");
   const [to, setTo] = useState("2026-04-30");
   const [pasienId, setPasienId] = useState<string>("");
@@ -50,7 +50,7 @@ export default function ExportPdfPage() {
     setDone(false);
     setError(null);
     try {
-      if (type === "soap-pasien") {
+      if (type === "rekam-medis") {
         if (!pasienId) {
           setError("Pilih pasien terlebih dahulu");
           return;
@@ -60,12 +60,24 @@ export default function ExportPdfPage() {
           { pasien_id: pasienId },
           `rekam-medis-${pasienId}.pdf`,
         );
-      } else {
+      } else if (type === "laporan-bulanan") {
         const month = from.slice(0, 7);
         await downloadBlob(
           "/api/pdf/generate-laporan-bulanan",
           { month },
           `laporan-bulanan-${month}.pdf`,
+        );
+      } else if (type === "efek-samping") {
+        await downloadBlob(
+          "/api/pdf/generate-efek-samping",
+          {},
+          `laporan-efek-samping.pdf`,
+        );
+      } else if (type === "inventaris") {
+        await downloadBlob(
+          "/api/pdf/generate-inventaris",
+          {},
+          `laporan-inventaris-obat.pdf`,
         );
       }
       setDone(true);
@@ -182,7 +194,7 @@ export default function ExportPdfPage() {
             </div>
 
             <div style={{ minHeight: 110, marginBottom: 22 }}>
-              {type === "soap-pasien" ? (
+              {type === "rekam-medis" ? (
                 <>
                   <h3
                     className="mono"
@@ -203,12 +215,12 @@ export default function ExportPdfPage() {
                   >
                     {patients.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.id} — {p.nama}
+                        {p.id} - {p.nama}
                       </option>
                     ))}
                   </select>
                 </>
-              ) : (
+              ) : type === "laporan-bulanan" ? (
                 <>
                   <h3
                     className="mono"
@@ -251,6 +263,36 @@ export default function ExportPdfPage() {
                         className="input"
                       />
                     </label>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-3)",
+                      marginBottom: 12,
+                    }}
+                  >
+                    2 · Cakupan
+                  </h3>
+                  <div
+                    style={{
+                      padding: 12,
+                      borderRadius: 10,
+                      background: "var(--bg-2)",
+                      border: "1px solid var(--line)",
+                      fontSize: 13,
+                      color: "var(--ink-2)",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {type === "efek-samping"
+                      ? "Laporan ini mengagregasi seluruh basis data keamanan obat dan resep pasien. Tidak perlu memilih pasien atau periode."
+                      : "Laporan ini mencetak seluruh katalog obat di Faskes 1 saat ini. Tidak perlu memilih pasien atau periode."}
                   </div>
                 </>
               )}
@@ -310,12 +352,16 @@ export default function ExportPdfPage() {
             >
               <div style={{ borderBottom: "1px solid #ccc", paddingBottom: 10, marginBottom: 12 }}>
                 <strong style={{ fontFamily: "Fraunces, serif", fontSize: 16 }}>
-                  MedWatch — {TYPES.find((t) => t.id === type)?.label}
+                  MedWatch - {TYPES.find((t) => t.id === type)?.label}
                 </strong>
                 <div style={{ color: "#666", fontSize: 10, marginTop: 4 }}>
-                  {type === "soap-pasien"
+                  {type === "rekam-medis"
                     ? `Pasien: ${pasienId || "(pilih pasien)"}`
-                    : `Periode: ${from} s/d ${to}`}
+                    : type === "laporan-bulanan"
+                      ? `Periode: ${from} s/d ${to}`
+                      : type === "efek-samping"
+                        ? `Cakupan: seluruh basis data keamanan obat`
+                        : `Cakupan: seluruh inventaris obat Faskes 1`}
                 </div>
                 <div style={{ color: "#666", fontSize: 10 }}>
                   Klinik Posyandu Cibiru · Bidan Siti
