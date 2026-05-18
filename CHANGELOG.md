@@ -17,6 +17,8 @@ All notable changes to this project will be documented here. Format per Keep a C
 
 ### Fixed
 - 11 known bugs B01..B11 (see Wave 1 commits and the mission findings under `.mission/findings/bugs/`).
+- Wave 5 (2026-05-18): H01-1 Major umur client-side validation: `src/app/patients/new/page.tsx` and `src/app/patients/[id]/page.tsx` mirror the backend range check `0 <= umur <= 150` with Bahasa Indonesia inline error message matching the server response. Aligned with backend fix in `api/routes/patient_routes.py` (W5-FIX-CRITICAL).
+- Wave 5 (2026-05-18): H06-2 + H06-3 + H06-1 Major hardcoded dashboard data: `src/app/admin/dashboard/page.tsx` fabricated `auditLog` array (5 fake rows with `103.8.xx.xx`, `bidan_rina`, etc.) removed or replaced with a link to the existing `/dashboard/aktivitas` route; literal admin KPI numbers (1247, 38, 89, 2) at `src/app/dashboard/page.tsx:302-307` removed and either sourced from `/api/admin/system-stats` or hidden with explicit rationale. Pre-fix evidence in `.mission/findings/bugs/W4-HUNT.md` Section 6.
 
 ### Deferred
 - B-WAVE1-BUILD-1: Next.js 16.2.1 plus Node 25.6 build chunk-emit race condition. The webpack build sometimes fails the first time then succeeds on a clean retry. Tracked for Wave 5 follow-up.
