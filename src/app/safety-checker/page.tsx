@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
-import type { Patient } from "@/lib/patient-format";
+import { parseResepToMeds, type Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +36,7 @@ type BackendSafetyResult = {
   warnings: string[];
   obat_tidak_ditemukan: string[];
   pasien_context: { id: string; nama: string; kategori?: string; diagnosa?: string } | null;
+  pasien_active_meds?: string[];
 };
 
 type ResultCard = {
@@ -117,6 +118,7 @@ function SafetyCheckerInner() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patientsLoaded, setPatientsLoaded] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [activeMeds, setActiveMeds] = useState<string[]>([]);
   const [drugs, setDrugs] = useState<string[]>([]);
   const [prefillApplied, setPrefillApplied] = useState(false);
   const [drugQuery, setDrugQuery] = useState("");
@@ -124,6 +126,7 @@ function SafetyCheckerInner() {
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState<BackendSafetyResult | null>(null);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (!hydrated) fetchMe();
@@ -189,6 +192,46 @@ function SafetyCheckerInner() {
     }
     setPrefillApplied(true);
   }, [initialDrugParam, drugsLoaded, drugLookup, drugs.length, prefillApplied]);
+
+  // B05: when a patient is picked, fetch the full SOAP record to read
+  // `P.resep`, parse it into a list of active medications, surface them in
+  // the UI, and auto-populate the drug input list so the bidan can see
+  // what is being cross-referenced.
+  useEffect(() => {
+    if (!patient) {
+      setActiveMeds([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const full = await api.get<Patient>(`/api/patients/${patient.id}`);
+        if (cancelled) return;
+        const meds = parseResepToMeds(full?.P?.resep);
+        setActiveMeds(meds);
+        if (meds.length > 0) {
+          setDrugs((prev) => {
+            const seen = new Set(prev.map((d) => d.toLowerCase()));
+            const merged = [...prev];
+            for (const m of meds) {
+              if (!seen.has(m.toLowerCase())) {
+                merged.push(m);
+                seen.add(m.toLowerCase());
+              }
+            }
+            return merged;
+          });
+          setScanned(false);
+          setResult(null);
+        }
+      } catch {
+        if (!cancelled) setActiveMeds([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patient]);
 
   const drugSuggestions = useMemo(() => {
     if (!drugQuery) return [];
@@ -422,37 +465,94 @@ function SafetyCheckerInner() {
                     style={{
                       padding: 16,
                       marginBottom: 24,
-                      display: "grid",
-                      gridTemplateColumns: "1fr auto",
+                      display: "flex",
+                      flexDirection: "column",
                       gap: 12,
                     }}
                   >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                        <span className="mono" style={{ fontSize: 12, color: "var(--teal-deep)", fontWeight: 600 }}>
-                          {patient.id}
-                        </span>
-                        <span style={{ fontWeight: 500 }}>{patient.nama}</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
-                        {patient.umur || "-"} tahun
-                        {patient.kategori ? ` · ${patient.kategori}` : ""}
-                        {patient.A?.diagnosa ? ` · ${patient.A.diagnosa}` : ""}
-                      </div>
-                    </div>
-                    <button
-                      className="btn btn-ghost"
-                      onClick={() => {
-                        setPatient(null);
-                        setScanned(false);
-                        setResult(null);
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr auto",
+                        gap: 12,
                       }}
-                      style={{ alignSelf: "flex-start", padding: 6 }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                        <path d="m6 6 12 12M18 6 6 18" />
-                      </svg>
-                    </button>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+                          <span className="mono" style={{ fontSize: 12, color: "var(--teal-deep)", fontWeight: 600 }}>
+                            {patient.id}
+                          </span>
+                          <span style={{ fontWeight: 500 }}>{patient.nama}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                          {patient.umur || "-"} tahun
+                          {patient.kategori ? ` · ${patient.kategori}` : ""}
+                          {patient.A?.diagnosa ? ` · ${patient.A.diagnosa}` : ""}
+                        </div>
+                      </div>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          setPatient(null);
+                          setActiveMeds([]);
+                          setScanned(false);
+                          setResult(null);
+                        }}
+                        style={{ alignSelf: "flex-start", padding: 6 }}
+                        aria-label="Lepas pasien"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                          <path d="m6 6 12 12M18 6 6 18" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div
+                      data-testid="active-meds-panel"
+                      style={{
+                        borderTop: "1px dashed var(--line)",
+                        paddingTop: 10,
+                      }}
+                    >
+                      <div
+                        className="mono"
+                        style={{
+                          fontSize: 10,
+                          letterSpacing: "0.1em",
+                          textTransform: "uppercase",
+                          color: "var(--ink-3)",
+                          marginBottom: 6,
+                        }}
+                      >
+                        Obat aktif pasien
+                      </div>
+                      {activeMeds.length > 0 ? (
+                        <>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {activeMeds.map((m) => (
+                              <span
+                                key={m}
+                                className="chip"
+                                style={{
+                                  background: "var(--teal-soft)",
+                                  borderColor: "var(--teal-soft)",
+                                  color: "var(--teal-deep)",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {m}
+                              </span>
+                            ))}
+                          </div>
+                          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6 }}>
+                            Diambil dari resep kunjungan terakhir dan otomatis dimasukkan ke daftar obat di bawah.
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                          Tidak ada resep aktif tercatat pada kunjungan terakhir.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -609,6 +709,85 @@ function SafetyCheckerInner() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 18, minHeight: 360 }}>
+            <div
+              data-testid="safety-help-panel"
+              className="glass-thin"
+              style={{ padding: 14, borderRadius: 14 }}
+            >
+              <button
+                type="button"
+                onClick={() => setHelpOpen((v) => !v)}
+                aria-expanded={helpOpen}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                  color: "var(--ink)",
+                  textAlign: "left",
+                }}
+              >
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M12 8v.01M11 12h1v4h1" />
+                  </svg>
+                  Cara membaca verdikt dan obat aktif
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  style={{
+                    transform: helpOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 160ms ease",
+                  }}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+              {helpOpen && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  <div>
+                    <strong style={{ color: "var(--ink)" }}>Apa itu obat aktif?</strong>{" "}
+                    Obat aktif adalah obat yang sedang dikonsumsi pasien berdasarkan resep pada kunjungan terakhir. Sistem mengambilnya otomatis dari catatan SOAP (bagian P, baris resep) dan memasukkannya ke daftar obat agar selalu ikut dicek bersama obat baru.
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--ink)" }}>Bagaimana VERDIKT dihitung?</strong>{" "}
+                    Setiap efek samping yang dikenali diberi bobot keparahan: <em>ringan = 1</em>, <em>sedang = 2</em>, <em>serius = 4</em>. Total bobot dibagi bobot maksimum (jumlah efek dikali 4) menghasilkan skor 0-100. Skor di bawah 40 = label <em>rendah</em>, 40-69 = <em>sedang</em>, 70 ke atas = <em>tinggi</em>. VERDIKT di kartu utama adalah label tertinggi di antara semua obat dan interaksi yang dicek.
+                  </div>
+                  <div>
+                    <strong style={{ color: "var(--ink)" }}>Kenapa muncul banyak kartu?</strong>{" "}
+                    Tiap kartu mewakili satu pasangan obat atau satu efek samping dari satu obat yang dikenali. Jika Anda mengecek tiga obat, sistem menampilkan kartu untuk setiap kombinasi yang berisiko (pasangan A-B, B-C, A-C) plus kartu per efek samping yang relevan. Warna kartu menandakan tingkat keparahan: hijau = ringan, kuning = sedang, merah = serius.
+                  </div>
+                </div>
+              )}
+            </div>
             {scanned ? (
               <>
                 <div className="glass" style={{ padding: 28, position: "relative", overflow: "hidden" }}>

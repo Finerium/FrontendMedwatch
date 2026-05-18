@@ -73,3 +73,39 @@ export function todayDDMMYYYY(): string {
   const yy = d.getFullYear();
   return `${dd}-${mm}-${yy}`;
 }
+
+/**
+ * Parse a bidan-typed `P.resep` field into a clean list of drug names.
+ * Mirrors the backend `parse_resep_to_meds` rules so the UI can preview the
+ * patient's active medications immediately when a patient is selected, before
+ * the safety check API call returns.
+ *
+ * Rules:
+ *  1. Split on newline, semicolon, and comma.
+ *  2. Strip dosage hints like `1x1 sehari`, `3x500mg`, `500mg`, parenthetical
+ *     notes, and Latin frequency tokens (prn, qd, bid, tid, qid).
+ *  3. Collapse whitespace, dedupe case-insensitively, drop empty/numeric.
+ */
+export function parseResepToMeds(resep: string | undefined | null): string[] {
+  if (!resep || typeof resep !== "string") return [];
+  const fragments = resep.split(/[\n;,]+/);
+  const dosageRe =
+    /\s+(\d+\s*x\s*\d+(?:\s*(?:mg|mcg|ml|g|tablet|tab|kaps|kapsul|sdt|sdm|tetes|cc))?(?:\s*(?:sehari|per\s*hari|hari|sebelum|sesudah|pagi|siang|sore|malam))?|\d+\s*(?:mg|mcg|ml|g|tablet|tab|kaps|kapsul|sdt|sdm|tetes|cc)\b(?:\s*(?:sehari|per\s*hari|hari))?|\d+\s*(?:sehari|per\s*hari|hari|kali|x)\b|\(.*?\)).*$/i;
+  const trailingNoteRe = /\s+(prn|p\.r\.n|jika\s+perlu|bila\s+perlu|qd|bid|tid|qid)\b.*$/i;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of fragments) {
+    let name = (raw || "").trim();
+    if (!name) continue;
+    name = name.replace(dosageRe, "");
+    name = name.replace(trailingNoteRe, "");
+    name = name.replace(/\s+/g, " ").replace(/^[\s.;:-]+|[\s.;:-]+$/g, "");
+    if (!name) continue;
+    if (/^\d+$/.test(name)) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
