@@ -99,13 +99,10 @@ export default function AdminDashboardPage() {
       ]
     : null;
 
-  const auditLog = [
-    { t: "14:32", who: "bidan_siti", act: "Login dari IP 103.8.xx.xx" },
-    { t: "14:18", who: "admin_ghaisan", act: "Approve user request, bidan_rina" },
-    { t: "13:55", who: "system", act: "Scrape BPOM cron berjalan, 132 entri baru" },
-    { t: "13:02", who: "umum_budi", act: "Cek interaksi paracetamol x cetirizine" },
-    { t: "12:30", who: "bidan_siti", act: "Update SOAP P024" },
-  ];
+  // H06-2 (Wave 5): the previous hardcoded auditLog sample has been
+  // removed. The real activity feed lives at `/dashboard/aktivitas`
+  // (T1-ADMIN destination); a CTA links there instead so the panel does
+  // not show fabricated rows.
 
   return (
     <div
@@ -243,31 +240,33 @@ export default function AdminDashboardPage() {
             Buka panel scraper
           </Link>
         </div>
-        <div className="glass" style={{ padding: 24 }}>
-          <h3 className="serif" style={{ fontSize: "1.4rem", marginBottom: 14 }}>
-            Audit log
-          </h3>
-          {auditLog.map((l, i) => (
-            <div
-              key={i}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "60px 140px 1fr",
-                gap: 14,
-                padding: "10px 0",
-                borderBottom: "1px solid var(--line-2)",
-                fontSize: 13,
-              }}
-            >
-              <span className="mono" style={{ color: "var(--ink-3)" }}>
-                {l.t}
-              </span>
-              <span className="mono" style={{ color: "var(--teal-deep)" }}>
-                {l.who}
-              </span>
-              <span style={{ color: "var(--ink-2)" }}>{l.act}</span>
-            </div>
-          ))}
+        <div
+          className="glass"
+          data-testid="admin-audit-log-link"
+          style={{
+            padding: 24,
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 18,
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h3 className="serif" style={{ fontSize: "1.4rem", marginBottom: 6 }}>
+              Audit log
+            </h3>
+            <p style={{ fontSize: 13, color: "var(--ink-3)", margin: 0, maxWidth: 560 }}>
+              Riwayat kegiatan sesi pengguna tersedia di halaman aktivitas. Klik tombol
+              di samping untuk membuka log lengkap.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/aktivitas"
+            className="btn"
+            style={{ textDecoration: "none", whiteSpace: "nowrap" }}
+          >
+            Lihat aktivitas lengkap
+          </Link>
         </div>
       </div>
     </div>

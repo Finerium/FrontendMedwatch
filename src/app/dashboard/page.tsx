@@ -13,6 +13,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth-store";
 import { NavIcon } from "@/components/shell/NavIcon";
+import { api } from "@/lib/api";
 
 /** Series of integers consumed by the KPI sparkline SVG. */
 type Sparkline = number[];
@@ -26,6 +27,21 @@ type Kpi = {
   accent?: string;
   sparkline?: Sparkline;
   big?: boolean;
+};
+
+/**
+ * Aggregated system metrics returned by `/api/admin/system-stats`.
+ * Used by the admin dashboard block to display real values instead of
+ * the spec-fabricated 1247 / 38 / 89 / 2 hardcode flagged by H06-1.
+ */
+type SystemStats = {
+  users_count: number;
+  patients_count: number;
+  drugs_count: number;
+  last_scrape: { drugs_updated?: number; timestamp?: string } | null;
+  users_by_role: { tenaga_kesehatan: number; masyarakat: number; admin: number };
+  process_started_at?: string;
+  uptime_seconds?: number;
 };
 
 /**
@@ -268,6 +284,43 @@ export default function DashboardPage() {
   const isMasy = role === "masyarakat";
   const isAdmin = role === "admin";
 
+  // H06-1 (Wave 5): fetch real backing data so the KPI tiles show live
+  // numbers instead of the fabricated 1247 / 38 / 89 / 2 admin block and
+  // 248 / 17 / 423 / 6 bidan block. Admin reuses /api/admin/system-stats
+  // (the same endpoint /admin/dashboard already calls). Bidan derives
+  // Pasien terdaftar from /api/patients length. Masyarakat shows a
+  // descriptive (number-free) block because there is no per-user metric
+  // surface yet; the simpler removal pattern is documented in the
+  // finding rationale.
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [patientsCount, setPatientsCount] = useState<number | null>(null);
+  const [statsLoaded, setStatsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!role) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (isAdmin) {
+          const data = await api.get<SystemStats>("/api/admin/system-stats");
+          if (!cancelled) setStats(data);
+        }
+        if (isBidan) {
+          const list = await api.get<Array<{ id: string }>>("/api/patients");
+          if (!cancelled) setPatientsCount(Array.isArray(list) ? list.length : 0);
+        }
+      } catch {
+        // Best-effort fetch. If it fails we render the fallback values
+        // (0) without breaking the layout.
+      } finally {
+        if (!cancelled) setStatsLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role, isAdmin, isBidan]);
+
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 11) return "Selamat pagi";
@@ -285,25 +338,47 @@ export default function DashboardPage() {
         ? "Pusat Administrasi MedWatch"
         : "Sinkronisasi sesi…";
 
+  // H06-1: KPI values are now derived from real backend responses. The
+  // bidan and masyarakat blocks only surface fields backed by data we
+  // can verify; KPIs without a source are omitted rather than hardcoded.
   const kpis: Kpi[] = isBidan
     ? [
-        { label: "Pasien aktif", value: 248, delta: "+12 minggu ini", deltaDir: "up", accent: "var(--teal)", sparkline: [10, 14, 12, 18, 22, 21, 28] },
-        { label: "Kunjungan hari ini", value: 17, delta: "3 menunggu", deltaDir: "flat", accent: "var(--ink)", sparkline: [4, 6, 8, 5, 12, 15, 17] },
-        { label: "Resep di-skrining", value: 423, delta: "+8% bulan ini", deltaDir: "up", accent: "var(--teal)", sparkline: [22, 28, 30, 35, 40, 38, 45] },
-        { label: "Peringatan keamanan", value: 6, delta: "2 perlu tindakan", deltaDir: "down", accent: "var(--crit)", sparkline: [3, 5, 4, 8, 6, 7, 6] },
+        {
+          label: "Pasien terdaftar",
+          value: patientsCount ?? 0,
+          delta: "dari /api/patients",
+          deltaDir: "flat",
+          accent: "var(--teal)",
+        },
       ]
     : isMasy
-      ? [
-          { label: "Obat dilacak", value: 4, delta: "aktif", deltaDir: "flat", accent: "var(--teal)" },
-          { label: "Pengecekan keamanan", value: 12, delta: "+3 minggu ini", deltaDir: "up", accent: "var(--teal)" },
-          { label: "Konsultasi mendatang", value: 1, delta: "Senin 09:00", deltaDir: "flat", accent: "var(--ink)" },
-          { label: "Pengingat dosis", value: 8, delta: "hari ini", deltaDir: "flat", accent: "var(--warn)" },
-        ]
+      ? []
       : [
-          { label: "Pengguna sistem", value: 1247, delta: "+34 bulan ini", deltaDir: "up", accent: "var(--teal)" },
-          { label: "Faskes terhubung", value: 38, delta: "+2 minggu ini", deltaDir: "up", accent: "var(--teal)" },
-          { label: "Scrape jobs", value: 89, delta: "7 berjalan", deltaDir: "flat", accent: "var(--ink)" },
-          { label: "Error rate", value: 2, delta: "-0.4% hari ini", deltaDir: "up", accent: "var(--safe)" },
+          {
+            label: "Pengguna sistem",
+            value: stats?.users_count ?? 0,
+            delta: stats
+              ? `${stats.users_by_role.tenaga_kesehatan} bidan, ${stats.users_by_role.masyarakat} masyarakat`
+              : "memuat",
+            deltaDir: "flat",
+            accent: "var(--teal)",
+          },
+          {
+            label: "Pasien terdaftar",
+            value: stats?.patients_count ?? 0,
+            delta: "rekam medis SOAP",
+            deltaDir: "flat",
+            accent: "var(--teal)",
+          },
+          {
+            label: "Obat di katalog",
+            value: stats?.drugs_count ?? 0,
+            delta: stats?.last_scrape?.drugs_updated
+              ? `update terakhir ${stats.last_scrape.drugs_updated}`
+              : "katalog BPOM",
+            deltaDir: "flat",
+            accent: "var(--ink)",
+          },
         ];
 
   const activities: { time: string; kind: ActivityKind; text: string; severity: Severity }[] = [
@@ -435,26 +510,28 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div
-          className="kpi-grid"
-          style={{
-            display: "grid",
-            gap: 16,
-            gridTemplateColumns: "repeat(4, 1fr)",
-            marginBottom: 36,
-            minHeight: 168,
-          }}
-        >
-          {!role
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="glass" style={{ padding: 22, minHeight: 168 }}>
-                  <div className="skel" style={{ height: 12, width: 100, borderRadius: 4 }} aria-hidden />
-                  <div className="skel" style={{ height: 48, width: 140, borderRadius: 6, marginTop: 18 }} aria-hidden />
-                  <div className="skel" style={{ height: 12, width: 80, borderRadius: 4, marginTop: 18 }} aria-hidden />
-                </div>
-              ))
-            : kpis.map((k, i) => <KpiCard key={i} {...k} />)}
-        </div>
+        {kpis.length > 0 && (
+          <div
+            className="kpi-grid"
+            style={{
+              display: "grid",
+              gap: 16,
+              gridTemplateColumns: `repeat(${Math.min(kpis.length, 4)}, 1fr)`,
+              marginBottom: 36,
+              minHeight: 168,
+            }}
+          >
+            {!role || !statsLoaded
+              ? Array.from({ length: Math.min(kpis.length || 4, 4) }).map((_, i) => (
+                  <div key={i} className="glass" style={{ padding: 22, minHeight: 168 }}>
+                    <div className="skel" style={{ height: 12, width: 100, borderRadius: 4 }} aria-hidden />
+                    <div className="skel" style={{ height: 48, width: 140, borderRadius: 6, marginTop: 18 }} aria-hidden />
+                    <div className="skel" style={{ height: 12, width: 80, borderRadius: 4, marginTop: 18 }} aria-hidden />
+                  </div>
+                ))
+              : kpis.map((k, i) => <KpiCard key={i} {...k} />)}
+          </div>
+        )}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 36 }}>
           {quickActions.map((a) => (

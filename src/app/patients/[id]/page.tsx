@@ -16,6 +16,7 @@ import {
   NUMERIC_RANGES,
   validateField,
   validateObjective,
+  validateUmur,
   type ObjectiveNumericKey,
 } from "@/lib/patient-validation";
 
@@ -34,6 +35,7 @@ export default function EditPatientPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<ObjectiveNumericKey, string>>>({});
+  const [umurError, setUmurError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -73,8 +75,12 @@ export default function EditPatientPage() {
     );
   }
 
-  const update = <K extends keyof Patient>(key: K, value: Patient[K]) =>
+  const update = <K extends keyof Patient>(key: K, value: Patient[K]) => {
     setForm((s) => (s ? { ...s, [key]: value } : s));
+    if (key === "umur") {
+      setUmurError(validateUmur(value as string));
+    }
+  };
   const updateO = (key: keyof Patient["O"], value: string) => {
     setForm((s) => (s ? { ...s, O: { ...s.O, [key]: value } } : s));
     if (
@@ -107,6 +113,12 @@ export default function EditPatientPage() {
     if (!form) return;
     if (!form.nama.trim() || !form.S.keluhan.trim() || !form.A.diagnosa.trim() || !form.P.tindakan.trim()) {
       setError("Field nama, keluhan (S), diagnosa (A), dan tindakan (P) wajib diisi.");
+      return;
+    }
+    const umurMsg = validateUmur(form.umur);
+    if (umurMsg) {
+      setUmurError(umurMsg);
+      setError("Periksa kembali nilai umur.");
       return;
     }
     const errs = validateObjective(form.O);
@@ -195,11 +207,12 @@ export default function EditPatientPage() {
                   required
                 />
               </Field>
-              <Field label="Umur">
+              <Field label="Umur" error={umurError ?? undefined}>
                 <input
                   className="input"
                   value={form.umur || ""}
                   onChange={(e) => update("umur", e.target.value)}
+                  aria-invalid={umurError ? true : undefined}
                 />
               </Field>
               <Field label="Alamat">

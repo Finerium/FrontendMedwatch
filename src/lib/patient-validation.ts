@@ -1,13 +1,14 @@
 /**
  * Client-side validation for patient SOAP numeric medical fields (bug
- * B03 in the mission register). Ranges mirror the server-side checks in
- * `api/routes/patient_routes.py` so any value accepted by this module is
- * also accepted by the backend. All user-facing messages are in Bahasa
- * Indonesia per the project locale rules.
+ * B03 in the mission register) plus the Wave 5 umur guard (H01-1).
+ * Ranges mirror the server-side checks in `api/routes/patient_routes.py`
+ * so any value accepted by this module is also accepted by the backend.
+ * All user-facing messages are in Bahasa Indonesia per the project
+ * locale rules.
  *
  * Key exports: `ObjectiveNumericKey`, `NUMERIC_RANGES`,
- * `SYSTOLIC_RANGE`, `DIASTOLIC_RANGE`, `validateField`,
- * `validateObjective`.
+ * `SYSTOLIC_RANGE`, `DIASTOLIC_RANGE`, `UMUR_RANGE`, `validateField`,
+ * `validateObjective`, `validateUmur`.
  */
 
 import type { PatientObjective } from "./patient-format";
@@ -42,9 +43,17 @@ export const NUMERIC_RANGES: Record<Exclude<ObjectiveNumericKey, "tekanan_darah"
 export const SYSTOLIC_RANGE = { min: 60, max: 250 };
 /** Acceptable diastolic blood pressure range (mmHg). */
 export const DIASTOLIC_RANGE = { min: 30, max: 160 };
+/**
+ * Acceptable umur range (years). Mirrors the backend
+ * `UMUR_MIN`/`UMUR_MAX` constants in `api/routes/patient_routes.py`
+ * (H01-1). The bidan input convention accepts a bare integer ("25")
+ * or the abbreviated form ("25 THN").
+ */
+export const UMUR_RANGE = { min: 0, max: 150 };
 
 const TD_PATTERN = /^\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*$/;
 const NUMERIC_ONLY = /^-?\d+(?:[.,]\d+)?$/;
+const UMUR_PATTERN = /^\s*(-?\d+)\s*(?:thn|tahun|y|yr|yrs)?\s*$/i;
 
 /**
  * Return an Indonesian error message for a single field value, or null if
@@ -102,4 +111,27 @@ export function validateObjective(
     if (msg) errors[k] = msg;
   }
   return errors;
+}
+
+/**
+ * Validate the umur field (H01-1). Empty values are allowed because the
+ * SOAP schema marks umur as optional. Returns an Indonesian error
+ * message or null when the value is acceptable.
+ *
+ * Mirrors the backend `_validate_umur` helper in
+ * `api/routes/patient_routes.py`.
+ */
+export function validateUmur(raw: string | number | undefined | null): string | null {
+  if (raw === undefined || raw === null) return null;
+  const v = String(raw).trim();
+  if (!v) return null;
+  const m = UMUR_PATTERN.exec(v);
+  if (!m) {
+    return `Umur harus berupa angka antara ${UMUR_RANGE.min} dan ${UMUR_RANGE.max}.`;
+  }
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n < UMUR_RANGE.min || n > UMUR_RANGE.max) {
+    return `Umur harus antara ${UMUR_RANGE.min} dan ${UMUR_RANGE.max}.`;
+  }
+  return null;
 }
