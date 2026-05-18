@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type Preset = {
   label: string;
+  roleLabel: string;
   u: string;
   p: string;
   role: Role;
@@ -15,9 +16,30 @@ type Preset = {
 };
 
 const PRESETS: Preset[] = [
-  { label: "Bidan", u: "bidan_siti", p: "siti2026", role: "tenaga_kesehatan", color: "var(--teal)" },
-  { label: "Masyarakat", u: "umum_budi", p: "budi2026", role: "masyarakat", color: "var(--warn)" },
-  { label: "Admin", u: "admin_ghaisan", p: "admin2026", role: "admin", color: "var(--crit)" },
+  {
+    label: "Demo Bidan",
+    roleLabel: "Tenaga Kesehatan",
+    u: "bidan_siti",
+    p: "siti2026",
+    role: "tenaga_kesehatan",
+    color: "var(--teal)",
+  },
+  {
+    label: "Demo Masyarakat",
+    roleLabel: "Masyarakat Umum",
+    u: "umum_budi",
+    p: "budi2026",
+    role: "masyarakat",
+    color: "var(--warn)",
+  },
+  {
+    label: "Demo Admin",
+    roleLabel: "Administrator Sistem",
+    u: "admin_ghaisan",
+    p: "admin2026",
+    role: "admin",
+    color: "var(--crit)",
+  },
 ];
 
 export default function LoginPage() {
@@ -55,11 +77,27 @@ function LoginInner() {
     return () => window.removeEventListener("mousemove", onMouse);
   }, []);
 
-  const submit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const result = await login(username, password);
+
+    // Read straight from the DOM via FormData so that browser autofill,
+    // password managers, or controlled-input race conditions cannot leave
+    // submit firing with stale empty React state. The visible input values
+    // are always the source of truth on submit.
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const u = (fd.get("username") as string | null)?.trim() || username.trim();
+    const p = (fd.get("password") as string | null) || password;
+
+    if (!u || !p) {
+      setLoading(false);
+      setError("Username dan password wajib diisi.");
+      return;
+    }
+
+    const result = await login(u, p);
     if (!result.ok) {
       setLoading(false);
       setError(result.error || "Kredensial tidak cocok dengan akun demo.");
@@ -212,7 +250,7 @@ function LoginInner() {
                 Kredensial demo tersedia
               </div>
               <div className="mono" style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>
-                klik salah satu peran di kanan untuk auto-isi
+                klik salah satu peran untuk auto-isi
               </div>
             </div>
           </div>
@@ -259,10 +297,14 @@ function LoginInner() {
               <input
                 className="input"
                 type="text"
+                name="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="bidan_siti"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -280,6 +322,7 @@ function LoginInner() {
               <input
                 className="input"
                 type="password"
+                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -353,22 +396,23 @@ function LoginInner() {
             <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
             {PRESETS.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 onClick={() => fillPreset(p)}
                 className="lift"
+                aria-label={`${p.label}, username ${p.u}, password ${p.p}`}
                 style={{
-                  padding: "14px 12px",
+                  padding: "12px 14px",
                   border: "1px solid " + (activePreset === p.label ? "var(--ink)" : "var(--line)"),
                   background: activePreset === p.label ? "var(--bg-2)" : "transparent",
-                  borderRadius: 14,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  alignItems: "flex-start",
+                  borderRadius: 12,
+                  display: "grid",
+                  gridTemplateColumns: "auto 1fr auto",
+                  gap: 12,
+                  alignItems: "center",
                   cursor: "pointer",
                   textAlign: "left",
                   transition: "all 280ms",
@@ -376,25 +420,59 @@ function LoginInner() {
               >
                 <span
                   style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 7,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 4,
                     background: p.color,
-                    opacity: 0.85,
+                    opacity: 0.9,
+                    flexShrink: 0,
                   }}
                 />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
-                  {p.label}
+                <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
+                    {p.label}
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 10,
+                      color: "var(--ink-3)",
+                      letterSpacing: "0.02em",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {p.u} / {p.p}
+                  </span>
                 </span>
                 <span
                   className="mono"
-                  style={{ fontSize: 9, color: "var(--ink-3)", letterSpacing: "0.04em" }}
+                  style={{
+                    fontSize: 9,
+                    color: "var(--ink-3)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    flexShrink: 0,
+                  }}
                 >
-                  {p.u}
+                  Isi
                 </span>
               </button>
             ))}
           </div>
+          <p
+            style={{
+              marginTop: 12,
+              fontSize: 11,
+              color: "var(--ink-3)",
+              lineHeight: 1.5,
+            }}
+          >
+            Klik salah satu kartu di atas untuk mengisi otomatis kolom username dan password.
+            Setelah terisi, tekan tombol <strong style={{ color: "var(--ink-2)" }}>Masuk</strong> atau
+            tekan <strong style={{ color: "var(--ink-2)" }}>Enter</strong> pada keyboard.
+          </p>
         </div>
       </div>
 
