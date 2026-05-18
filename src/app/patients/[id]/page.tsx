@@ -6,6 +6,12 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import type { Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
+import {
+  NUMERIC_RANGES,
+  validateField,
+  validateObjective,
+  type ObjectiveNumericKey,
+} from "@/lib/patient-validation";
 
 export default function EditPatientPage() {
   const router = useRouter();
@@ -16,6 +22,7 @@ export default function EditPatientPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<ObjectiveNumericKey, string>>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -57,8 +64,26 @@ export default function EditPatientPage() {
 
   const update = <K extends keyof Patient>(key: K, value: Patient[K]) =>
     setForm((s) => (s ? { ...s, [key]: value } : s));
-  const updateO = (key: keyof Patient["O"], value: string) =>
+  const updateO = (key: keyof Patient["O"], value: string) => {
     setForm((s) => (s ? { ...s, O: { ...s.O, [key]: value } } : s));
+    if (
+      key === "tekanan_darah" ||
+      key === "bb_kg" ||
+      key === "tb_cm" ||
+      key === "lila_cm" ||
+      key === "nadi" ||
+      key === "suhu_c" ||
+      key === "respirasi"
+    ) {
+      const msg = validateField(key, value);
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        if (msg) next[key] = msg;
+        else delete next[key];
+        return next;
+      });
+    }
+  };
   const updateS = (key: keyof Patient["S"], value: string) =>
     setForm((s) => (s ? { ...s, S: { ...s.S, [key]: value } } : s));
   const updateA = (key: keyof Patient["A"], value: string) =>
@@ -71,6 +96,12 @@ export default function EditPatientPage() {
     if (!form) return;
     if (!form.nama.trim() || !form.S.keluhan.trim() || !form.A.diagnosa.trim() || !form.P.tindakan.trim()) {
       setError("Field nama, keluhan (S), diagnosa (A), dan tindakan (P) wajib diisi.");
+      return;
+    }
+    const errs = validateObjective(form.O);
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setError("Periksa kembali nilai numerik pada bagian Objective.");
       return;
     }
     setBusy(true);
@@ -209,53 +240,93 @@ export default function EditPatientPage() {
           <div className="glass" style={{ padding: 24 }}>
             <h3 className="mono" style={sectionTitleStyle}>3 · O — Objective</h3>
             <div style={twoColStyle}>
-              <Field label="Tekanan darah (td.)">
+              <Field label="Tekanan darah (td.)" error={fieldErrors.tekanan_darah}>
                 <input
                   className="input"
+                  inputMode="numeric"
+                  pattern="\d{1,3}/\d{1,3}"
                   value={form.O.tekanan_darah || ""}
                   onChange={(e) => updateO("tekanan_darah", e.target.value)}
+                  placeholder="110/70"
+                  aria-invalid={fieldErrors.tekanan_darah ? true : undefined}
                 />
               </Field>
-              <Field label="BB (kg)">
+              <Field label="BB (kg)" error={fieldErrors.bb_kg}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.bb_kg.min}
+                  max={NUMERIC_RANGES.bb_kg.max}
+                  step={NUMERIC_RANGES.bb_kg.step}
+                  inputMode="decimal"
                   value={form.O.bb_kg || ""}
                   onChange={(e) => updateO("bb_kg", e.target.value)}
+                  aria-invalid={fieldErrors.bb_kg ? true : undefined}
                 />
               </Field>
-              <Field label="tb (cm)">
+              <Field label="tb (cm)" error={fieldErrors.tb_cm}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.tb_cm.min}
+                  max={NUMERIC_RANGES.tb_cm.max}
+                  step={NUMERIC_RANGES.tb_cm.step}
+                  inputMode="decimal"
                   value={form.O.tb_cm || ""}
                   onChange={(e) => updateO("tb_cm", e.target.value)}
+                  aria-invalid={fieldErrors.tb_cm ? true : undefined}
                 />
               </Field>
-              <Field label="lila (cm)">
+              <Field label="lila (cm)" error={fieldErrors.lila_cm}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.lila_cm.min}
+                  max={NUMERIC_RANGES.lila_cm.max}
+                  step={NUMERIC_RANGES.lila_cm.step}
+                  inputMode="decimal"
                   value={form.O.lila_cm || ""}
                   onChange={(e) => updateO("lila_cm", e.target.value)}
+                  aria-invalid={fieldErrors.lila_cm ? true : undefined}
                 />
               </Field>
-              <Field label="Nadi">
+              <Field label="Nadi" error={fieldErrors.nadi}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.nadi.min}
+                  max={NUMERIC_RANGES.nadi.max}
+                  step={NUMERIC_RANGES.nadi.step}
+                  inputMode="numeric"
                   value={form.O.nadi || ""}
                   onChange={(e) => updateO("nadi", e.target.value)}
+                  aria-invalid={fieldErrors.nadi ? true : undefined}
                 />
               </Field>
-              <Field label="Suhu (°C)">
+              <Field label="Suhu (°C)" error={fieldErrors.suhu_c}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.suhu_c.min}
+                  max={NUMERIC_RANGES.suhu_c.max}
+                  step={NUMERIC_RANGES.suhu_c.step}
+                  inputMode="decimal"
                   value={form.O.suhu_c || ""}
                   onChange={(e) => updateO("suhu_c", e.target.value)}
+                  aria-invalid={fieldErrors.suhu_c ? true : undefined}
                 />
               </Field>
-              <Field label="Respirasi">
+              <Field label="Respirasi" error={fieldErrors.respirasi}>
                 <input
                   className="input"
+                  type="number"
+                  min={NUMERIC_RANGES.respirasi.min}
+                  max={NUMERIC_RANGES.respirasi.max}
+                  step={NUMERIC_RANGES.respirasi.step}
+                  inputMode="numeric"
                   value={form.O.respirasi || ""}
                   onChange={(e) => updateO("respirasi", e.target.value)}
+                  aria-invalid={fieldErrors.respirasi ? true : undefined}
                 />
               </Field>
             </div>
@@ -381,7 +452,15 @@ const twoColStyle: React.CSSProperties = {
   marginBottom: 12,
 };
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+}) {
   return (
     <label style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 12 }}>
       <span
@@ -396,6 +475,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
         {label}
       </span>
       {children}
+      {error && (
+        <span
+          role="alert"
+          style={{
+            fontSize: 12,
+            color: "var(--crit-deep)",
+            marginTop: 2,
+          }}
+        >
+          {error}
+        </span>
+      )}
     </label>
   );
 }
