@@ -1,0 +1,204 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - img [ref=e6]
+          - generic [ref=e9]: MedWatch
+        - navigation [ref=e10]:
+          - link "Beranda" [ref=e11] [cursor=pointer]:
+            - /url: /admin/dashboard
+            - img [ref=e12]
+            - text: Beranda
+          - link "Pengguna" [ref=e15] [cursor=pointer]:
+            - /url: /admin/users
+            - img [ref=e16]
+            - text: Pengguna
+          - link "Scraper" [ref=e21] [cursor=pointer]:
+            - /url: /admin/scraper
+            - img [ref=e22]
+            - text: Scraper
+          - link "Visualisasi" [ref=e25] [cursor=pointer]:
+            - /url: /visualization
+            - img [ref=e26]
+            - text: Visualisasi
+        - button "Toggle theme" [ref=e28] [cursor=pointer]:
+          - generic [ref=e31]: LIGHT
+        - button "AD admin" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: AD
+          - generic [ref=e34]: admin
+    - generic [ref=e37]:
+      - text: Heatmap · obat × efek samping
+      - heading "Matriks kekerapan." [level=1] [ref=e38]:
+        - text: Matriks
+        - emphasis [ref=e39]: kekerapan
+        - text: .
+      - paragraph [ref=e40]: Intensitas efek samping terlapor per obat dan per jenis efek, ditimbang berdasarkan tingkat keparahan (ringan, sedang, serius). Baris dan kolom diurut menurun sesuai total, sehingga obat dan efek dengan intensitas tertinggi tampak di sudut kiri atas.
+      - generic [ref=e41]:
+        - table [ref=e43]:
+          - rowgroup [ref=e44]:
+            - row "Obat \\ Efek Reaksi alergi berat Gangguan ginjal Mual Ruam kulit Tukak lambung Pusing Diare Nyeri lambung Peningkatan enzim hati Angioedema Asidosis laktat Batuk kering Hipoglikemia Hipotensi Kantuk Kembung Mulut kering" [ref=e45]:
+              - columnheader "Obat \\ Efek" [ref=e46]
+              - columnheader "Reaksi alergi berat" [ref=e47]:
+                - generic [ref=e48]: Reaksi alergi berat
+              - columnheader "Gangguan ginjal" [ref=e49]:
+                - generic [ref=e50]: Gangguan ginjal
+              - columnheader "Mual" [ref=e51]:
+                - generic [ref=e52]: Mual
+              - columnheader "Ruam kulit" [ref=e53]:
+                - generic [ref=e54]: Ruam kulit
+              - columnheader "Tukak lambung" [ref=e55]:
+                - generic [ref=e56]: Tukak lambung
+              - columnheader "Pusing" [ref=e57]:
+                - generic [ref=e58]: Pusing
+              - columnheader "Diare" [ref=e59]:
+                - generic [ref=e60]: Diare
+              - columnheader "Nyeri lambung" [ref=e61]:
+                - generic [ref=e62]: Nyeri lambung
+              - columnheader "Peningkatan enzim hati" [ref=e63]:
+                - generic [ref=e64]: Peningkatan enzim hati
+              - columnheader "Angioedema" [ref=e65]:
+                - generic [ref=e66]: Angioedema
+              - columnheader "Asidosis laktat" [ref=e67]:
+                - generic [ref=e68]: Asidosis laktat
+              - columnheader "Batuk kering" [ref=e69]:
+                - generic [ref=e70]: Batuk kering
+              - columnheader "Hipoglikemia" [ref=e71]:
+                - generic [ref=e72]: Hipoglikemia
+              - columnheader "Hipotensi" [ref=e73]:
+                - generic [ref=e74]: Hipotensi
+              - columnheader "Kantuk" [ref=e75]:
+                - generic [ref=e76]: Kantuk
+              - columnheader "Kembung" [ref=e77]:
+                - generic [ref=e78]: Kembung
+              - columnheader "Mulut kering" [ref=e79]:
+                - generic [ref=e80]: Mulut kering
+          - rowgroup [ref=e81]:
+            - 'row "Ibuprofen Ibuprofen × Reaksi alergi berat: 0 Ibuprofen × Gangguan ginjal: 4 Ibuprofen × Mual: 1 Ibuprofen × Ruam kulit: 0 Ibuprofen × Tukak lambung: 4 Ibuprofen × Pusing: 1 Ibuprofen × Diare: 0 Ibuprofen × Nyeri lambung: 2 Ibuprofen × Peningkatan enzim hati: 0 Ibuprofen × Angioedema: 0 Ibuprofen × Asidosis laktat: 0 Ibuprofen × Batuk kering: 0 Ibuprofen × Hipoglikemia: 0 Ibuprofen × Hipotensi: 0 Ibuprofen × Kantuk: 0 Ibuprofen × Kembung: 0 Ibuprofen × Mulut kering: 0" [ref=e82]':
+              - rowheader "Ibuprofen" [ref=e83]
+              - 'cell "Ibuprofen × Reaksi alergi berat: 0" [ref=e84]'
+              - 'cell "Ibuprofen × Gangguan ginjal: 4" [ref=e85]'
+              - 'cell "Ibuprofen × Mual: 1" [ref=e86]'
+              - 'cell "Ibuprofen × Ruam kulit: 0" [ref=e87]'
+              - 'cell "Ibuprofen × Tukak lambung: 4" [ref=e88]'
+              - 'cell "Ibuprofen × Pusing: 1" [ref=e89]'
+              - 'cell "Ibuprofen × Diare: 0" [ref=e90]'
+              - 'cell "Ibuprofen × Nyeri lambung: 2" [ref=e91]'
+              - 'cell "Ibuprofen × Peningkatan enzim hati: 0" [ref=e92]'
+              - 'cell "Ibuprofen × Angioedema: 0" [ref=e93]'
+              - 'cell "Ibuprofen × Asidosis laktat: 0" [ref=e94]'
+              - 'cell "Ibuprofen × Batuk kering: 0" [ref=e95]'
+              - 'cell "Ibuprofen × Hipoglikemia: 0" [ref=e96]'
+              - 'cell "Ibuprofen × Hipotensi: 0" [ref=e97]'
+              - 'cell "Ibuprofen × Kantuk: 0" [ref=e98]'
+              - 'cell "Ibuprofen × Kembung: 0" [ref=e99]'
+              - 'cell "Ibuprofen × Mulut kering: 0" [ref=e100]'
+            - 'row "Paracetamol Paracetamol × Reaksi alergi berat: 4 Paracetamol × Gangguan ginjal: 0 Paracetamol × Mual: 1 Paracetamol × Ruam kulit: 2 Paracetamol × Tukak lambung: 0 Paracetamol × Pusing: 0 Paracetamol × Diare: 0 Paracetamol × Nyeri lambung: 0 Paracetamol × Peningkatan enzim hati: 2 Paracetamol × Angioedema: 0 Paracetamol × Asidosis laktat: 0 Paracetamol × Batuk kering: 0 Paracetamol × Hipoglikemia: 0 Paracetamol × Hipotensi: 0 Paracetamol × Kantuk: 0 Paracetamol × Kembung: 0 Paracetamol × Mulut kering: 0" [ref=e101]':
+              - rowheader "Paracetamol" [ref=e102]
+              - 'cell "Paracetamol × Reaksi alergi berat: 4" [ref=e103]'
+              - 'cell "Paracetamol × Gangguan ginjal: 0" [ref=e104]'
+              - 'cell "Paracetamol × Mual: 1" [ref=e105]'
+              - 'cell "Paracetamol × Ruam kulit: 2" [ref=e106]'
+              - 'cell "Paracetamol × Tukak lambung: 0" [ref=e107]'
+              - 'cell "Paracetamol × Pusing: 0" [ref=e108]'
+              - 'cell "Paracetamol × Diare: 0" [ref=e109]'
+              - 'cell "Paracetamol × Nyeri lambung: 0" [ref=e110]'
+              - 'cell "Paracetamol × Peningkatan enzim hati: 2" [ref=e111]'
+              - 'cell "Paracetamol × Angioedema: 0" [ref=e112]'
+              - 'cell "Paracetamol × Asidosis laktat: 0" [ref=e113]'
+              - 'cell "Paracetamol × Batuk kering: 0" [ref=e114]'
+              - 'cell "Paracetamol × Hipoglikemia: 0" [ref=e115]'
+              - 'cell "Paracetamol × Hipotensi: 0" [ref=e116]'
+              - 'cell "Paracetamol × Kantuk: 0" [ref=e117]'
+              - 'cell "Paracetamol × Kembung: 0" [ref=e118]'
+              - 'cell "Paracetamol × Mulut kering: 0" [ref=e119]'
+            - 'row "Amoxicillin Amoxicillin × Reaksi alergi berat: 4 Amoxicillin × Gangguan ginjal: 0 Amoxicillin × Mual: 1 Amoxicillin × Ruam kulit: 2 Amoxicillin × Tukak lambung: 0 Amoxicillin × Pusing: 0 Amoxicillin × Diare: 1 Amoxicillin × Nyeri lambung: 0 Amoxicillin × Peningkatan enzim hati: 0 Amoxicillin × Angioedema: 0 Amoxicillin × Asidosis laktat: 0 Amoxicillin × Batuk kering: 0 Amoxicillin × Hipoglikemia: 0 Amoxicillin × Hipotensi: 0 Amoxicillin × Kantuk: 0 Amoxicillin × Kembung: 0 Amoxicillin × Mulut kering: 0" [ref=e120]':
+              - rowheader "Amoxicillin" [ref=e121]
+              - 'cell "Amoxicillin × Reaksi alergi berat: 4" [ref=e122]'
+              - 'cell "Amoxicillin × Gangguan ginjal: 0" [ref=e123]'
+              - 'cell "Amoxicillin × Mual: 1" [ref=e124]'
+              - 'cell "Amoxicillin × Ruam kulit: 2" [ref=e125]'
+              - 'cell "Amoxicillin × Tukak lambung: 0" [ref=e126]'
+              - 'cell "Amoxicillin × Pusing: 0" [ref=e127]'
+              - 'cell "Amoxicillin × Diare: 1" [ref=e128]'
+              - 'cell "Amoxicillin × Nyeri lambung: 0" [ref=e129]'
+              - 'cell "Amoxicillin × Peningkatan enzim hati: 0" [ref=e130]'
+              - 'cell "Amoxicillin × Angioedema: 0" [ref=e131]'
+              - 'cell "Amoxicillin × Asidosis laktat: 0" [ref=e132]'
+              - 'cell "Amoxicillin × Batuk kering: 0" [ref=e133]'
+              - 'cell "Amoxicillin × Hipoglikemia: 0" [ref=e134]'
+              - 'cell "Amoxicillin × Hipotensi: 0" [ref=e135]'
+              - 'cell "Amoxicillin × Kantuk: 0" [ref=e136]'
+              - 'cell "Amoxicillin × Kembung: 0" [ref=e137]'
+              - 'cell "Amoxicillin × Mulut kering: 0" [ref=e138]'
+            - 'row "Metformin Metformin × Reaksi alergi berat: 0 Metformin × Gangguan ginjal: 0 Metformin × Mual: 1 Metformin × Ruam kulit: 0 Metformin × Tukak lambung: 0 Metformin × Pusing: 0 Metformin × Diare: 1 Metformin × Nyeri lambung: 0 Metformin × Peningkatan enzim hati: 0 Metformin × Angioedema: 0 Metformin × Asidosis laktat: 1 Metformin × Batuk kering: 0 Metformin × Hipoglikemia: 1 Metformin × Hipotensi: 0 Metformin × Kantuk: 0 Metformin × Kembung: 1 Metformin × Mulut kering: 0" [ref=e139]':
+              - rowheader "Metformin" [ref=e140]
+              - 'cell "Metformin × Reaksi alergi berat: 0" [ref=e141]'
+              - 'cell "Metformin × Gangguan ginjal: 0" [ref=e142]'
+              - 'cell "Metformin × Mual: 1" [ref=e143]'
+              - 'cell "Metformin × Ruam kulit: 0" [ref=e144]'
+              - 'cell "Metformin × Tukak lambung: 0" [ref=e145]'
+              - 'cell "Metformin × Pusing: 0" [ref=e146]'
+              - 'cell "Metformin × Diare: 1" [ref=e147]'
+              - 'cell "Metformin × Nyeri lambung: 0" [ref=e148]'
+              - 'cell "Metformin × Peningkatan enzim hati: 0" [ref=e149]'
+              - 'cell "Metformin × Angioedema: 0" [ref=e150]'
+              - 'cell "Metformin × Asidosis laktat: 1" [ref=e151]'
+              - 'cell "Metformin × Batuk kering: 0" [ref=e152]'
+              - 'cell "Metformin × Hipoglikemia: 1" [ref=e153]'
+              - 'cell "Metformin × Hipotensi: 0" [ref=e154]'
+              - 'cell "Metformin × Kantuk: 0" [ref=e155]'
+              - 'cell "Metformin × Kembung: 1" [ref=e156]'
+              - 'cell "Metformin × Mulut kering: 0" [ref=e157]'
+            - 'row "Captopril Captopril × Reaksi alergi berat: 0 Captopril × Gangguan ginjal: 0 Captopril × Mual: 0 Captopril × Ruam kulit: 0 Captopril × Tukak lambung: 0 Captopril × Pusing: 1 Captopril × Diare: 0 Captopril × Nyeri lambung: 0 Captopril × Peningkatan enzim hati: 0 Captopril × Angioedema: 1 Captopril × Asidosis laktat: 0 Captopril × Batuk kering: 1 Captopril × Hipoglikemia: 0 Captopril × Hipotensi: 1 Captopril × Kantuk: 0 Captopril × Kembung: 0 Captopril × Mulut kering: 0" [ref=e158]':
+              - rowheader "Captopril" [ref=e159]
+              - 'cell "Captopril × Reaksi alergi berat: 0" [ref=e160]'
+              - 'cell "Captopril × Gangguan ginjal: 0" [ref=e161]'
+              - 'cell "Captopril × Mual: 0" [ref=e162]'
+              - 'cell "Captopril × Ruam kulit: 0" [ref=e163]'
+              - 'cell "Captopril × Tukak lambung: 0" [ref=e164]'
+              - 'cell "Captopril × Pusing: 1" [ref=e165]'
+              - 'cell "Captopril × Diare: 0" [ref=e166]'
+              - 'cell "Captopril × Nyeri lambung: 0" [ref=e167]'
+              - 'cell "Captopril × Peningkatan enzim hati: 0" [ref=e168]'
+              - 'cell "Captopril × Angioedema: 1" [ref=e169]'
+              - 'cell "Captopril × Asidosis laktat: 0" [ref=e170]'
+              - 'cell "Captopril × Batuk kering: 1" [ref=e171]'
+              - 'cell "Captopril × Hipoglikemia: 0" [ref=e172]'
+              - 'cell "Captopril × Hipotensi: 1" [ref=e173]'
+              - 'cell "Captopril × Kantuk: 0" [ref=e174]'
+              - 'cell "Captopril × Kembung: 0" [ref=e175]'
+              - 'cell "Captopril × Mulut kering: 0" [ref=e176]'
+            - 'row "Cetirizine Cetirizine × Reaksi alergi berat: 0 Cetirizine × Gangguan ginjal: 0 Cetirizine × Mual: 0 Cetirizine × Ruam kulit: 0 Cetirizine × Tukak lambung: 0 Cetirizine × Pusing: 1 Cetirizine × Diare: 0 Cetirizine × Nyeri lambung: 0 Cetirizine × Peningkatan enzim hati: 0 Cetirizine × Angioedema: 0 Cetirizine × Asidosis laktat: 0 Cetirizine × Batuk kering: 0 Cetirizine × Hipoglikemia: 0 Cetirizine × Hipotensi: 0 Cetirizine × Kantuk: 1 Cetirizine × Kembung: 0 Cetirizine × Mulut kering: 1" [ref=e177]':
+              - rowheader "Cetirizine" [ref=e178]
+              - 'cell "Cetirizine × Reaksi alergi berat: 0" [ref=e179]'
+              - 'cell "Cetirizine × Gangguan ginjal: 0" [ref=e180]'
+              - 'cell "Cetirizine × Mual: 0" [ref=e181]'
+              - 'cell "Cetirizine × Ruam kulit: 0" [ref=e182]'
+              - 'cell "Cetirizine × Tukak lambung: 0" [ref=e183]'
+              - 'cell "Cetirizine × Pusing: 1" [ref=e184]'
+              - 'cell "Cetirizine × Diare: 0" [ref=e185]'
+              - 'cell "Cetirizine × Nyeri lambung: 0" [ref=e186]'
+              - 'cell "Cetirizine × Peningkatan enzim hati: 0" [ref=e187]'
+              - 'cell "Cetirizine × Angioedema: 0" [ref=e188]'
+              - 'cell "Cetirizine × Asidosis laktat: 0" [ref=e189]'
+              - 'cell "Cetirizine × Batuk kering: 0" [ref=e190]'
+              - 'cell "Cetirizine × Hipoglikemia: 0" [ref=e191]'
+              - 'cell "Cetirizine × Hipotensi: 0" [ref=e192]'
+              - 'cell "Cetirizine × Kantuk: 1" [ref=e193]'
+              - 'cell "Cetirizine × Kembung: 0" [ref=e194]'
+              - 'cell "Cetirizine × Mulut kering: 1" [ref=e195]'
+        - generic [ref=e196]:
+          - generic [ref=e197]:
+            - generic [ref=e198]: Skala intensitas
+            - generic [ref=e199]: rendah → tinggi
+          - generic [ref=e201]:
+            - generic [ref=e202]: "0"
+            - generic [ref=e203]: "2"
+            - generic [ref=e204]: "4"
+          - generic [ref=e205]:
+            - generic [ref=e206]: Data tidak tersedia (N/A)
+            - generic [ref=e208]: "Tiap sel menyatakan intensitas tertimbang efek samping per obat per jenis efek (presensi × bobot keparahan; ringan=1, sedang=2, serius=4). Sumber: agregasi data obat MedWatch (anggota4) dan referensi openFDA."
+  - button "Open Next.js Dev Tools" [ref=e214] [cursor=pointer]:
+    - img [ref=e215]
+  - alert [ref=e218]

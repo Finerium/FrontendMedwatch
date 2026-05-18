@@ -439,9 +439,14 @@ export default function DashboardPage() {
               <h2 className="serif" style={{ fontSize: "1.5rem" }}>
                 Aktivitas terbaru
               </h2>
-              <button className="btn btn-ghost" style={{ fontSize: 12 }}>
-                Lihat semua →
-              </button>
+              <Link
+                href="/dashboard/aktivitas"
+                className="btn btn-ghost"
+                data-testid="lihat-semua-aktivitas"
+                style={{ fontSize: 12, textDecoration: "none" }}
+              >
+                Lihat semua &rarr;
+              </Link>
             </div>
             <div>
               {activities.map((a, i) => (
