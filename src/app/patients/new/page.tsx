@@ -203,7 +203,7 @@ export default function NewPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>2 · S — Subjective (wajib)</h3>
+            <h3 className="mono" style={sectionTitleStyle}>2 · S - Subjective (wajib)</h3>
             <Field label="Keluhan">
               <textarea
                 className="input"
@@ -226,7 +226,7 @@ export default function NewPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>3 · O — Objective</h3>
+            <h3 className="mono" style={sectionTitleStyle}>3 · O - Objective</h3>
             <div style={twoColStyle}>
               <Field label="Tekanan darah (td.)" error={fieldErrors.tekanan_darah}>
                 <input
@@ -336,7 +336,7 @@ export default function NewPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>4 · A — Assessment (wajib)</h3>
+            <h3 className="mono" style={sectionTitleStyle}>4 · A - Assessment (wajib)</h3>
             <Field label="Diagnosa">
               <textarea
                 className="input"
@@ -350,7 +350,7 @@ export default function NewPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>5 · P — Plan (wajib)</h3>
+            <h3 className="mono" style={sectionTitleStyle}>5 · P - Plan (wajib)</h3>
             <Field label="Tindakan (multi-baris)">
               <textarea
                 className="input"

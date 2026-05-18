@@ -154,9 +154,9 @@ export default function ProfilePage() {
                 Riwayat pengecekan
               </h3>
               {[
-                "Paracetamol × ibuprofen — aman",
-                "Amoxicillin — aman",
-                "Cetirizine × paracetamol — aman",
+                "Paracetamol × ibuprofen - aman",
+                "Amoxicillin - aman",
+                "Cetirizine × paracetamol - aman",
               ].map((r, i) => (
                 <div key={i} style={{ padding: "8px 0", fontSize: 13, color: "var(--ink-2)" }}>
                   · {r}

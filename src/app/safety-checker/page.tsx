@@ -486,7 +486,7 @@ function SafetyCheckerInner() {
                               <div>
                                 <div style={{ fontSize: 14, fontWeight: 500 }}>{p.nama}</div>
                                 <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                                  {p.umur || "-"} thn · {p.kategori || p.A?.diagnosa || "—"}
+                                  {p.umur || "-"} thn · {p.kategori || p.A?.diagnosa || "-"}
                                 </div>
                               </div>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">

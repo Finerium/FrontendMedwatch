@@ -440,11 +440,11 @@ function DrugComparisonInner() {
                                   ))}
                                 </ul>
                               ) : (
-                                <span style={{ color: "var(--ink-4)", fontStyle: "italic" }}>—</span>
+                                <span style={{ color: "var(--ink-4)", fontStyle: "italic" }}>-</span>
                               )
                             ) : (
                               (value as string) || (
-                                <span style={{ color: "var(--ink-4)", fontStyle: "italic" }}>—</span>
+                                <span style={{ color: "var(--ink-4)", fontStyle: "italic" }}>-</span>
                               )
                             )}
                           </td>
@@ -532,7 +532,7 @@ function DrugComparisonInner() {
                                   textAlign: "right",
                                 }}
                               >
-                                {has ? "ya" : "—"}
+                                {has ? "ya" : "-"}
                               </span>
                             </div>
                           );

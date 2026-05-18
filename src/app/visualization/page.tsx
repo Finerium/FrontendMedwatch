@@ -27,11 +27,11 @@ const FALLBACK_EFFECTS = [
   { drug: "Ibuprofen", effect: "Nyeri ulu hati", n: 16 },
 ];
 const AGES = [
-  { label: "0–5", n: 42 },
-  { label: "6–17", n: 28 },
-  { label: "18–34", n: 56 },
-  { label: "35–54", n: 78 },
-  { label: "55–64", n: 64 },
+  { label: "0-5", n: 42 },
+  { label: "6-17", n: 28 },
+  { label: "18-34", n: 56 },
+  { label: "35-54", n: 78 },
+  { label: "55-64", n: 64 },
   { label: "65+", n: 38 },
 ];
 

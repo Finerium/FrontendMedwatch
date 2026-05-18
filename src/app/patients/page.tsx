@@ -133,7 +133,7 @@ function SoapBlock({
         )}
         {!content && fields.length === 0 && (
           <p style={{ marginTop: 6, fontSize: 13, color: "var(--ink-4)", fontStyle: "italic" }}>
-            — kosong —
+            - kosong -
           </p>
         )}
       </div>
@@ -344,7 +344,7 @@ export default function PatientsPage() {
                     </div>
                   </div>
                   <span className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
-                    {p.tanggal_kunjungan || "—"}
+                    {p.tanggal_kunjungan || "-"}
                   </span>
                 </div>
               );
@@ -372,7 +372,7 @@ export default function PatientsPage() {
                   <div style={{ color: "var(--ink-3)", marginTop: 4 }}>
                     {(() => {
                       const g = inferGender(selected.nama);
-                      const genderLabel = g === "P" ? "Perempuan" : g === "L" ? "Laki-laki" : "—";
+                      const genderLabel = g === "P" ? "Perempuan" : g === "L" ? "Laki-laki" : "-";
                       return (
                         <>
                           {genderLabel} · {selected.umur || "-"} tahun
@@ -407,7 +407,7 @@ export default function PatientsPage() {
                   marginBottom: 14,
                 }}
               >
-                SOAP · kunjungan {selected.tanggal_kunjungan || "—"}
+                SOAP · kunjungan {selected.tanggal_kunjungan || "-"}
               </h3>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

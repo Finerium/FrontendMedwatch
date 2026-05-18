@@ -276,7 +276,7 @@ export default function DashboardPage() {
     return "Selamat malam";
   })();
 
-  const displayName = user?.name || user?.username || "—";
+  const displayName = user?.name || user?.username || "-";
   const subtitle = isBidan
     ? "Klinik Posyandu Cibiru · Bandung"
     : isMasy
@@ -307,13 +307,13 @@ export default function DashboardPage() {
         ];
 
   const activities: { time: string; kind: ActivityKind; text: string; severity: Severity }[] = [
-    { time: "14:32", kind: "soap", text: "SOAP P012 — Tn. Wahyudi · diagnosa hipertensi grade 1", severity: null },
+    { time: "14:32", kind: "soap", text: "SOAP P012 - Tn. Wahyudi · diagnosa hipertensi grade 1", severity: null },
     { time: "14:18", kind: "alert", text: "Interaksi sedang: warfarin × ibuprofen pada P008", severity: "sedang" },
-    { time: "13:45", kind: "drug", text: "Paracetamol 500mg di-skrining untuk P024 — Ny. Murni", severity: null },
+    { time: "13:45", kind: "drug", text: "Paracetamol 500mg di-skrining untuk P024 - Ny. Murni", severity: null },
     { time: "13:02", kind: "visit", text: "Kunjungan baru: Ny. Hartini (P031) · keluhan demam 3 hari", severity: null },
     { time: "12:30", kind: "alert", text: "Peringatan serius: amiodarone × ciprofloxacin pada P003", severity: "serius" },
-    { time: "11:54", kind: "soap", text: "SOAP P005 diperbarui — kontrol kehamilan trimester 2", severity: null },
-    { time: "10:12", kind: "drug", text: "Amoxicillin 500mg untuk P017 — interaksi diperiksa", severity: "ringan" },
+    { time: "11:54", kind: "soap", text: "SOAP P005 diperbarui - kontrol kehamilan trimester 2", severity: null },
+    { time: "10:12", kind: "drug", text: "Amoxicillin 500mg untuk P017 - interaksi diperiksa", severity: "ringan" },
   ];
 
   const upcomingPatients = [

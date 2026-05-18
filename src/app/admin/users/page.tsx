@@ -145,7 +145,7 @@ export default function AdminUsersPage() {
                 </span>
                 <span className="chip">{u.role.replace("_", " ")}</span>
                 <span style={{ fontSize: 13, color: "var(--ink-3)" }}>
-                  {u.faskes || u.name || "—"}
+                  {u.faskes || u.name || "-"}
                 </span>
                 <span className={"sev " + (status === "active" ? "sev-ringan" : "sev-sedang")}>
                   <span className="sev-dot" />
