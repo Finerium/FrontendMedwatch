@@ -4,8 +4,10 @@
  * `?initial=` must update local state, and the search-with-suggestions
  * box hosts a live filtered dropdown.
  *
- * `force-dynamic` prevents Next from caching the route output since the
- * search params drive an immediate selection update.
+ * Static-export note: `useSearchParams` is already wrapped in a
+ * Suspense boundary below, so no `dynamic = "force-dynamic"` flag is
+ * needed. The `?initial=` prefill still works because the parameter is
+ * read on the client and drives a local state update.
  */
 "use client";
 
@@ -15,8 +17,6 @@ import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import type { BackendDrug } from "@/lib/drug-format";
 import { NavIcon } from "@/components/shell/NavIcon";
-
-export const dynamic = "force-dynamic";
 
 /** Maximum drugs the side-by-side table can show without becoming unreadable. */
 const MAX_DRUGS = 3;

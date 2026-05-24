@@ -5,8 +5,10 @@
  * masyarakat roles see slightly different copy; B05 active-meds
  * awareness is implemented by the effect that watches `patient`.
  *
- * `force-dynamic` is required because the `?drug=` deep link must
- * survive without a cached HTML output.
+ * Static-export note: `useSearchParams` is already wrapped in a
+ * Suspense boundary below, so no `dynamic = "force-dynamic"` flag is
+ * needed. The `?drug=` deep link still works because parameters are
+ * read on the client at runtime.
  */
 "use client";
 
@@ -17,8 +19,6 @@ import { useAuthStore } from "@/lib/auth-store";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import { parseResepToMeds, type Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
-
-export const dynamic = "force-dynamic";
 
 /** Severity words shown to the user. */
 type SeverityWord = "aman" | "ringan" | "sedang" | "serius";

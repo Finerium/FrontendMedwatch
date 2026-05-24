@@ -3,20 +3,20 @@
  * inputs, the parallax shapes follow the mouse cursor, and the auth
  * mutation runs entirely in the browser via `useAuthStore.login`.
  *
- * `force-dynamic` prevents Next from caching this route, which would
- * otherwise serve the wrong CSRF state to a second visitor.
- *
  * The demo preset cards (B09 visibility fix) auto-fill username and
  * password so the kelompok B5 demo never fails because of mistyped
  * credentials.
+ *
+ * Static-export note: `useSearchParams` is already wrapped in a
+ * Suspense boundary below, so no `dynamic = "force-dynamic"` flag is
+ * needed. Removing it lets the page render at build time for the
+ * desktop static export while keeping the same client behaviour.
  */
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore, landingForRole, type Role } from "@/lib/auth-store";
-
-export const dynamic = "force-dynamic";
 
 /** Demo credential preset displayed below the form. */
 type Preset = {

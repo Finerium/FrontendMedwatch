@@ -8,6 +8,7 @@
  * `landingForRole` helper used by the login redirect.
  */
 import { create } from "zustand";
+import { apiUrl } from "./api-base";
 
 /** The three demo roles the system supports. */
 export type Role = "tenaga_kesehatan" | "masyarakat" | "admin";
@@ -41,7 +42,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   login: async (username, password) => {
     set({ isLoading: true });
     try {
-      const r = await fetch("/api/auth/login", {
+      const r = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
@@ -61,14 +62,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    await fetch(apiUrl("/api/auth/logout"), { method: "POST" }).catch(() => {});
     set({ user: null, hydrated: true });
   },
 
   fetchMe: async () => {
     set({ isLoading: true });
     try {
-      const r = await fetch("/api/auth/me");
+      const r = await fetch(apiUrl("/api/auth/me"));
       if (r.ok) {
         const user = await r.json();
         set({ user, hydrated: true });

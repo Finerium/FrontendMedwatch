@@ -1,13 +1,18 @@
 /**
- * Edit-patient SOAP form. Marked `"use client"` because it hydrates a
- * dynamic-route record on mount, runs live numeric validation (B03),
- * and ships PUT/DELETE mutations through the proxy. Uses `useParams`
- * for the dynamic `[id]` segment.
+ * Edit-patient SOAP form. Uses a query parameter (`?id=`) instead of a
+ * dynamic route segment so the page can be statically exported without
+ * needing `dynamicParams = true`. The same code previously lived under
+ * `src/app/patients/[id]/page.tsx` and is preserved verbatim except for
+ * the way the id is read (now via `useSearchParams`).
+ *
+ * Marked `"use client"` because it hydrates a route-scoped record on
+ * mount, runs live numeric validation (B03), and ships PUT/DELETE
+ * mutations through the API helper.
  */
 "use client";
 
-import { useRouter, useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import type { Patient } from "@/lib/patient-format";
@@ -21,14 +26,27 @@ import {
 } from "@/lib/patient-validation";
 
 /**
- * Load and edit a single patient SOAP record. Provides PUT (save) and
- * DELETE (remove) mutations with confirmation, then routes back to the
- * roster on success.
+ * Route entry point. Suspense-wraps the inner form because
+ * `useSearchParams` requires a boundary under the App Router static
+ * export.
+ *
+ * @returns The interactive patient edit form behind a Suspense fallback.
  */
 export default function EditPatientPage() {
+  return (
+    <Suspense fallback={null}>
+      <EditPatientInner />
+    </Suspense>
+  );
+}
+
+/**
+ * Interactive body of the patient edit page.
+ */
+function EditPatientInner() {
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const id = typeof params.id === "string" ? params.id : "";
+  const params = useSearchParams();
+  const id = params.get("id") || "";
 
   const [form, setForm] = useState<Patient | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,7 +87,7 @@ export default function EditPatientPage() {
     return (
       <div className="page-in" style={{ padding: "160px 24px 80px", maxWidth: 1100, margin: "0 auto" }}>
         <div className="glass" style={{ padding: 40, textAlign: "center" }}>
-          <p style={{ color: "var(--ink-3)" }}>{loadError || "Memuat data pasien…"}</p>
+          <p style={{ color: "var(--ink-3)" }}>{loadError || "Memuat data pasien..."}</p>
         </div>
       </div>
     );
@@ -180,7 +198,7 @@ export default function EditPatientPage() {
             textTransform: "uppercase",
           }}
         >
-          Edit pasien · {form.id}
+          Edit pasien . {form.id}
         </span>
         <h1
           className="serif"
@@ -197,7 +215,7 @@ export default function EditPatientPage() {
 
         <form onSubmit={save} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>1 · Identitas</h3>
+            <h3 className="mono" style={sectionTitleStyle}>1 . Identitas</h3>
             <div style={twoColStyle}>
               <Field label="Nama (wajib)">
                 <input
@@ -241,7 +259,7 @@ export default function EditPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>2 · S - Subjective</h3>
+            <h3 className="mono" style={sectionTitleStyle}>2 . S - Subjective</h3>
             <Field label="Keluhan (wajib)">
               <textarea
                 className="input"
@@ -262,7 +280,7 @@ export default function EditPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>3 · O - Objective</h3>
+            <h3 className="mono" style={sectionTitleStyle}>3 . O - Objective</h3>
             <div style={twoColStyle}>
               <Field label="Tekanan darah (td.)" error={fieldErrors.tekanan_darah}>
                 <input
@@ -327,7 +345,7 @@ export default function EditPatientPage() {
                   aria-invalid={fieldErrors.nadi ? true : undefined}
                 />
               </Field>
-              <Field label="Suhu (°C)" error={fieldErrors.suhu_c}>
+              <Field label="Suhu (C)" error={fieldErrors.suhu_c}>
                 <input
                   className="input"
                   type="number"
@@ -365,7 +383,7 @@ export default function EditPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>4 · A - Assessment</h3>
+            <h3 className="mono" style={sectionTitleStyle}>4 . A - Assessment</h3>
             <Field label="Diagnosa (wajib)">
               <textarea
                 className="input"
@@ -378,7 +396,7 @@ export default function EditPatientPage() {
           </div>
 
           <div className="glass" style={{ padding: 24 }}>
-            <h3 className="mono" style={sectionTitleStyle}>5 · P - Plan</h3>
+            <h3 className="mono" style={sectionTitleStyle}>5 . P - Plan</h3>
             <Field label="Tindakan (wajib)">
               <textarea
                 className="input"
@@ -451,7 +469,7 @@ export default function EditPatientPage() {
                 <NavIcon name="shield" /> Cek interaksi
               </Link>
               <button type="submit" className="btn btn-primary" disabled={busy}>
-                {busy ? "Menyimpan…" : "Simpan perubahan"}
+                {busy ? "Menyimpan..." : "Simpan perubahan"}
               </button>
             </div>
           </div>

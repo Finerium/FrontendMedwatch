@@ -116,7 +116,7 @@ export default function NewPatientPage() {
     setError(null);
     try {
       const created = await api.post<Patient>("/api/patients", form);
-      router.replace(`/patients/${created.id}`);
+      router.replace(`/patients/edit/?id=${encodeURIComponent(created.id)}`);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Gagal menyimpan pasien");
       setSubmitting(false);

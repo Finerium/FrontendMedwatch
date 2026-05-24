@@ -451,7 +451,7 @@ export default function PatientsPage() {
                   <NavIcon name="shield" /> Cek interaksi obat
                 </Link>
                 <Link
-                  href={`/patients/${selected.id}`}
+                  href={`/patients/edit/?id=${encodeURIComponent(selected.id)}`}
                   className="btn"
                   style={{ textDecoration: "none" }}
                 >
