@@ -60,7 +60,7 @@ next-env.d.ts
 # Playwright + Vercel temp
 .playwright-mcp/
 
-# Dev screenshots in repo root (Wave 1 evidence; do not commit run-artifacts moving forward)
+# Dev screenshots in repo root (do not commit run artifacts moving forward)
 /*.png
 screenshots/
 
