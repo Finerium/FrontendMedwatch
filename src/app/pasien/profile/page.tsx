@@ -2,7 +2,7 @@
  * Masyarakat self-service profile. Marked `"use client"` because the
  * greeting reads the live auth store and renders user-specific copy.
  * The "obat saya" and "riwayat pengecekan" panels are still static seed
- * data; they will be wired to the backend in a subsequent wave.
+ * data; they will be wired to the backend later.
  */
 "use client";
 

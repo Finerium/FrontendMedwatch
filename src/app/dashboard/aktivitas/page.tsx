@@ -1,8 +1,8 @@
 /**
  * Full-feed companion to the bidan dashboard. Marked `"use client"`
  * because it reads the live auth store to pick role-specific seed data.
- * Created during Wave 1 to fix B02 (Lihat semua tombol inert), so the
- * destination link in the dashboard summary now has a real page.
+ * Backs the "Lihat semua" link in the dashboard summary so the
+ * destination now resolves to a real page.
  */
 "use client";
 

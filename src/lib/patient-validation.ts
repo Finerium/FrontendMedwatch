@@ -1,7 +1,7 @@
 /**
- * Client-side validation for patient SOAP numeric medical fields (bug
- * B03 in the mission register) plus the Wave 5 umur guard (H01-1).
- * Ranges mirror the server-side checks in `api/routes/patient_routes.py`
+ * Client-side validation for patient SOAP numeric medical fields plus
+ * the umur (age) guard. Ranges mirror the server-side checks in
+ * `api/routes/patient_routes.py`
  * so any value accepted by this module is also accepted by the backend.
  * All user-facing messages are in Bahasa Indonesia per the project
  * locale rules.

@@ -99,10 +99,9 @@ export default function AdminDashboardPage() {
       ]
     : null;
 
-  // H06-2 (Wave 5): the previous hardcoded auditLog sample has been
-  // removed. The real activity feed lives at `/dashboard/aktivitas`
-  // (T1-ADMIN destination); a CTA links there instead so the panel does
-  // not show fabricated rows.
+  // The previous hardcoded auditLog sample has been removed. The real
+  // activity feed lives at `/dashboard/aktivitas`; a CTA links there
+  // instead so the panel does not show fabricated rows.
 
   return (
     <div

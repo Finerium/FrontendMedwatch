@@ -4,8 +4,7 @@
  * `requestAnimationFrame` and the greeting depends on the local clock.
  *
  * The role-driven copy (KPIs, quick actions, side panel) keeps the UI
- * coherent for each of the three demo personas defined by the kelompok
- * B5 mission.
+ * coherent for each of the three demo personas.
  */
 "use client";
 
@@ -284,7 +283,7 @@ export default function DashboardPage() {
   const isMasy = role === "masyarakat";
   const isAdmin = role === "admin";
 
-  // H06-1 (Wave 5): fetch real backing data so the KPI tiles show live
+  // Fetch real backing data so the KPI tiles show live
   // numbers instead of the fabricated 1247 / 38 / 89 / 2 admin block and
   // 248 / 17 / 423 / 6 bidan block. Admin reuses /api/admin/system-stats
   // (the same endpoint /admin/dashboard already calls). Bidan derives

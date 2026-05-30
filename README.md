@@ -117,7 +117,7 @@ Daftar lengkap diagram (use case, class, activity, state machine, ERD Chen, ERD 
 
 ## 6. Prasyarat
 
-- Node.js 22 LTS direkomendasikan. Node.js 25 baru saja dirilis dan menghasilkan warning kompatibilitas (`B-WAVE1-BUILD-1`), namun build dan dev server tetap berjalan. Detail mitigasi ada di [AS-BUILT.md Known Issues](https://github.com/Bisura16/medWatch/blob/main/docs/AS-BUILT.md).
+- Node.js 22 LTS direkomendasikan. Node.js 25 baru saja dirilis dan menghasilkan warning kompatibilitas, namun build dan dev server tetap berjalan. Detail mitigasi ada di [AS-BUILT.md Known Issues](https://github.com/Bisura16/medWatch/blob/main/docs/AS-BUILT.md).
 - npm 10+.
 - Akses ke backend (local Flask di port 8080 atau Cloud Run URL).
 - Git 2.40+.
@@ -217,7 +217,7 @@ Data efek samping dan recall obat yang muncul di `/safety-checker`, `/heatmap`, 
    ```
 
    64 dari 64 URL yang dicoba semua mengembalikan 403. Tidak ada bypass anti-bot yang dilakukan.
-3. **Wave 1 (Mei 2026):** modul aditif `anggota1/openfda/` dibuat. Modul ini memakai openFDA REST API.
+3. **Mei 2026:** modul aditif `anggota1/openfda/` dibuat. Modul ini memakai openFDA REST API.
 
 Decision lengkap ada di [ADR-004 backend](https://github.com/Bisura16/medWatch/blob/main/docs/adr/0004-drugs-com-akamai-to-openfda-pivot.md).
 
@@ -251,7 +251,7 @@ export OPENFDA_API_KEY=<your-key-here>
 
 ### Hasil yang dicapai
 
-Run Wave 1 pada 18 Mei 2026: **1.850 reaction-term occurrences** terdistribusi pada **74 baris adverse event** plus **6.000 baris recall**. Hasil ini terlihat di frontend lewat `/heatmap`, `/safety-checker`, dan ekspor PDF efek samping.
+Run pipeline pada 18 Mei 2026: **1.850 reaction-term occurrences** terdistribusi pada **74 baris adverse event** plus **6.000 baris recall**. Hasil ini terlihat di frontend lewat `/heatmap`, `/safety-checker`, dan ekspor PDF efek samping.
 
 ---
 
@@ -326,7 +326,7 @@ FrontendMedwatch/
 │   └── proxy.ts                       # Next 16 middleware ekuivalen
 ├── public/
 │   └── indonesia-provinces.json       # topojson untuk archived map
-├── screenshots/                       # bukti verifikasi Wave 1
+├── screenshots/                       # bukti verifikasi visual
 ├── docs/
 │   ├── DESIGN_SYSTEM.md
 │   └── MOCK_DATA.md
@@ -345,11 +345,11 @@ Output sederhana dari `tree -L 2 -I 'node_modules|.next|.venv|__pycache__'` di r
 
 ### Verifikasi visual
 
-Folder [`screenshots/`](./screenshots/) berisi bukti uji visual dari Wave 1 (verifikasi B01-B11). Format: `<test-id>-<halaman>.png` plus dokumen pendukung PDF dan YAML snapshot.
+Folder [`screenshots/`](./screenshots/) berisi bukti uji visual per halaman. Format: `<test-id>-<halaman>.png` plus dokumen pendukung PDF dan YAML snapshot.
 
 ### Test plan lengkap
 
-Rencana pengujian formal black-box dengan teknik Equivalence Partitioning, Boundary Value Analysis, dan Decision Table mengikuti standar IEEE 829 akan diselesaikan di Wave 5 mission. Test plan dan Test Case TC-MOD-NNN akan didistribusikan attribusinya ke seluruh anggota tim dengan NIM.
+Rencana pengujian formal black-box dengan teknik Equivalence Partitioning, Boundary Value Analysis, dan Decision Table mengikuti standar IEEE 829 akan diselesaikan pada tahap berikutnya. Test plan dan Test Case TC-MOD-NNN akan didistribusikan attribusinya ke seluruh anggota tim dengan NIM.
 
 ---
 
@@ -367,7 +367,7 @@ Panduan lengkap (termasuk konfigurasi domain, environment per-stage, dan strateg
 
 ## 15. Kontribusi Tim
 
-Bagian ini menyimpan konten awal yang diauthor Ghaisan pada README versi sebelum Wave 2. Konten di-restructure ke section industri-standar di atas, namun tetap dipreserve di sini sebagai bukti kepemilikan dan riwayat kontribusi.
+Bagian ini menyimpan konten awal yang diauthor Ghaisan pada versi README sebelumnya. Konten di-restructure ke section industri-standar di atas, namun tetap dipreserve di sini sebagai bukti kepemilikan dan riwayat kontribusi.
 
 ### Authorship awal (oleh Ghaisan Khoirul Badruzaman)
 

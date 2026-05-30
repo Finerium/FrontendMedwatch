@@ -92,7 +92,7 @@ export function composeO(o: PatientObjective | undefined): string {
 
 /**
  * Local-time helper that returns today as dd-MM-yyyy. Backend expects the
- * mission-locked Indonesian locale format on every patient write.
+ * Indonesian locale format on every patient write.
  *
  * @returns Today as a dd-MM-yyyy string.
  */

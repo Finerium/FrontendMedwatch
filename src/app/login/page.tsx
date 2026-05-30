@@ -296,7 +296,7 @@ function IntroPanel() {
         dari basis data BPOM dan WHO.
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 40 }}>
-        {["Skrining 12.4k obat", "SOAP digital", "BPOM · WHO synced", "Severity engine"].map((t, i) => (
+        {["Skrining ribuan obat", "SOAP digital", "BPOM · WHO synced", "Severity engine"].map((t, i) => (
           <span key={i} className="chip">
             {t}
           </span>
