@@ -68,7 +68,7 @@ html, body {
   padding: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-inter-tight), 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
   font-feature-settings: 'cv11', 'ss01', 'ss03';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -117,10 +117,10 @@ body::before {
 ::selection { background: var(--teal-glow); color: var(--ink); }
 
 /* Type */
-.serif { font-family: 'Fraunces', 'Times New Roman', serif; font-feature-settings: 'ss01', 'ss03'; letter-spacing: -0.01em; }
-.mono  { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.serif { font-family: var(--font-fraunces), 'Fraunces', 'Times New Roman', serif; font-feature-settings: 'ss01', 'ss03'; letter-spacing: -0.01em; }
+.mono  { font-family: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace; }
 
-h1, h2, h3, h4 { font-family: 'Fraunces', serif; font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
+h1, h2, h3, h4 { font-family: var(--font-fraunces), 'Fraunces', serif; font-weight: 400; letter-spacing: -0.02em; line-height: 1.05; margin: 0; }
 h1 { font-size: clamp(2.4rem, 6vw, 5.2rem); }
 h2 { font-size: clamp(1.8rem, 3.4vw, 2.8rem); }
 h3 { font-size: 1.35rem; }
@@ -164,7 +164,7 @@ p  { margin: 0; line-height: 1.55; }
 /* Buttons */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
-  font: 500 14px/1 'Inter Tight', sans-serif;
+  font: 500 14px/1 var(--font-inter-tight), 'Inter Tight', sans-serif;
   letter-spacing: -0.01em;
   padding: 12px 18px;
   border-radius: 999px;
@@ -189,7 +189,7 @@ p  { margin: 0; line-height: 1.55; }
 
 /* Inputs */
 .input {
-  font: 400 15px/1.4 'Inter Tight', sans-serif;
+  font: 400 15px/1.4 var(--font-inter-tight), 'Inter Tight', sans-serif;
   background: var(--bg-2);
   border: 1px solid var(--line);
   color: var(--ink);
@@ -209,7 +209,7 @@ p  { margin: 0; line-height: 1.55; }
 /* Chips / tags */
 .chip {
   display: inline-flex; align-items: center; gap: 6px;
-  font: 500 11px/1 'JetBrains Mono', monospace;
+  font: 500 11px/1 var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
   letter-spacing: 0.04em; text-transform: uppercase;
   padding: 6px 10px;
   border-radius: 999px;
@@ -221,7 +221,7 @@ p  { margin: 0; line-height: 1.55; }
 [data-theme="dark"] .chip-teal { background: color-mix(in oklab, var(--teal) 25%, transparent); color: var(--teal); }
 
 /* Severity */
-.sev { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1 'JetBrains Mono', monospace; padding: 6px 10px; border-radius: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+.sev { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1 var(--font-jetbrains-mono), 'JetBrains Mono', monospace; padding: 6px 10px; border-radius: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
 .sev-dot { width: 8px; height: 8px; border-radius: 50%; }
 .sev-ringan { background: color-mix(in oklab, var(--safe) 14%, transparent); color: var(--safe-deep); }
 .sev-ringan .sev-dot { background: var(--safe); }
@@ -328,7 +328,7 @@ p  { margin: 0; line-height: 1.55; }
 
 /* Utility */
 .kbd {
-  font: 500 11px/1 'JetBrains Mono', monospace;
+  font: 500 11px/1 var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
   padding: 3px 6px; border-radius: 6px;
   background: var(--bg-2); border: 1px solid var(--line);
   color: var(--ink-3);

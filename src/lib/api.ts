@@ -1,10 +1,10 @@
 /**
  * Thin fetch wrapper used by every client component to talk to the backend.
  *
- * In the Vercel deployment, calls go through the same-origin Vercel
- * catch-all proxy at /api/* so the browser never sees the real Cloud
- * Run hostname; the JWT lives in an httpOnly cookie set by
- * /api/auth/login.
+ * The bundled Flask backend authenticates every request by reading the
+ * `Authorization: Bearer <token>` header. The token is captured at login
+ * and persisted by the auth store; `authHeaders` attaches it to each call
+ * whenever a token exists.
  *
  * In the Electron desktop variant, `apiUrl` resolves the dynamic
  * loopback port the bundled Flask backend listens on, so the same
@@ -13,7 +13,7 @@
  * Key exports: `ApiError`, the `api` verb helper, and `downloadBlob` for
  * binary PDF downloads.
  */
-import { apiUrl } from "./api-base";
+import { apiUrl, authHeaders } from "./api-base";
 
 /**
  * Error thrown for any non-2xx HTTP response. Carries the parsed body so
@@ -42,7 +42,7 @@ export class ApiError extends Error {
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = {
     method,
-    headers: body ? { "Content-Type": "application/json" } : {},
+    headers: authHeaders(body ? { "Content-Type": "application/json" } : undefined),
     body: body ? JSON.stringify(body) : undefined,
   };
   const r = await fetch(apiUrl(path), init);
@@ -87,7 +87,7 @@ export const api = {
 export async function downloadBlob(path: string, body: unknown, filename: string): Promise<void> {
   const r = await fetch(apiUrl(path), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   if (!r.ok) {

@@ -23,6 +23,82 @@ declare global {
 }
 
 /**
+ * localStorage key under which the backend-issued JWT is persisted so the
+ * session survives a reload of the desktop static export.
+ */
+const TOKEN_KEY = "medwatch_token";
+
+/**
+ * In-memory cache of the current token. Kept in sync with localStorage so
+ * reads on every API call avoid touching storage and so the token is still
+ * available during the brief window before the store hydrates.
+ */
+let tokenCache: string | null = null;
+
+/**
+ * Read the current auth token.
+ *
+ * Returns the in-memory copy when present, otherwise falls back to
+ * localStorage (guarded for SSR / static export where `window` is absent).
+ *
+ * @returns The JWT string, or null when logged out.
+ */
+export function getToken(): string | null {
+  if (tokenCache) return tokenCache;
+  if (typeof window === "undefined") return null;
+  try {
+    tokenCache = window.localStorage.getItem(TOKEN_KEY);
+  } catch {
+    tokenCache = null;
+  }
+  return tokenCache;
+}
+
+/**
+ * Persist the auth token to memory and localStorage.
+ *
+ * @param token - The JWT string returned by POST /api/auth/login.
+ */
+export function setToken(token: string): void {
+  tokenCache = token;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // storage may be unavailable; the in-memory copy still works this session
+  }
+}
+
+/**
+ * Clear the auth token from memory and localStorage (logged-out state).
+ */
+export function clearToken(): void {
+  tokenCache = null;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+/**
+ * Build the request headers that carry the bearer token when a token
+ * exists. Merges any caller-supplied headers (for example Content-Type).
+ *
+ * @param extra - Optional base headers to merge the Authorization onto.
+ * @returns A headers object ready to pass to `fetch`.
+ */
+export function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const headers: Record<string, string> = { ...(extra ?? {}) };
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+/**
  * Resolve the API base URL at call time.
  *
  * Returns a fully qualified `http://127.0.0.1:<port>` URL when the
