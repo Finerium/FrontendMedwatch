@@ -400,3 +400,27 @@ README backend memiliki section detail tentang openFDA acquisition, ERD, struktu
 ## 17. Lisensi
 
 Lisensi MIT. Lihat [`LICENSE`](./LICENSE) untuk teks lengkap.
+
+---
+
+## 18. Mode Desktop Offline dan Autentikasi
+
+Frontend ini berjalan di dua target dari satu basis kode:
+
+- **Web (Vercel):** static export di-serve dari origin yang sama dengan API.
+- **Desktop (Electron, offline):** static export yang sama di-bundle ke aplikasi Electron dan di-serve oleh backend Flask lokal di `http://127.0.0.1:<port>`. Tidak ada panggilan jaringan eksternal: font di-self-host (`next/font`), data obat dari SQLite lokal, peta wilayah dari file bundle.
+
+Deteksi runtime memakai `window.__MEDWATCH_BACKEND_PORT__` yang di-inject oleh preload Electron. `src/lib/api-base.ts` mengembalikan base `http://127.0.0.1:<port>` saat desktop dan base relatif saat web; token dikirim sebagai header `Authorization: Bearer` di kedua mode.
+
+### Autentikasi dan peran
+
+- Layar masuk berupa kartu peran (tanpa nama orang): Bidan dan Masyarakat di desktop, plus Admin (tur demo) di web. Klik kartu membuka login atau registrasi yang sudah ter-scope ke peran tersebut.
+- Hashing kata sandi memakai Argon2id (parameter sesuai rekomendasi OWASP) di backend. Kebijakan kata sandi: minimal 12 karakter, ditolak bila termasuk daftar kata sandi umum, diverifikasi ulang di server. Strength meter real-time di form registrasi mencerminkan kebijakan tersebut.
+- Route guard sisi klien (di `AppShell`) mengarahkan pengguna belum login ke `/login`, membatasi `/admin/*` hanya untuk admin, dan mengurung peran masyarakat ke daftar route yang diizinkan. Penegakan sebenarnya tetap di server: setiap endpoint `/api/*` butuh token bearer yang valid.
+
+### Visualisasi
+
+- `/drugs-visualization`: ringkasan katalog obat (total obat, NDC, rute, reaksi, penarikan) plus chart distribusi rute, bentuk sediaan, cakupan sumber, dan efek samping terbanyak. Data dari endpoint agregat backend `/api/visualizations/drugs-catalog`. Atribusi data: U.S. National Library of Medicine / openFDA.
+- `/visualization`: statistik klinik plus heatmap obat terhadap efek samping.
+
+Kredensial demo (untuk evaluator) tetap tersedia lewat login normal; password tidak ditampilkan di layar.
