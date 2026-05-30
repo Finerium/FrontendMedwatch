@@ -51,7 +51,7 @@ const pages: NavItem[] = [
   { label: "Indonesia Map", href: "/indonesia-map", icon: Map },
   { label: "Drug Network", href: "/drug-network", icon: Network },
   { label: "Molecule Viewer", href: "/molecule-viewer", icon: Atom },
-  { label: "Heatmap", href: "/heatmap", icon: Grid3x3 },
+  { label: "Drugs Visualization", href: "/drugs-visualization", icon: Grid3x3 },
   { label: "Export PDF", href: "/export", icon: FileDown },
 ];
 

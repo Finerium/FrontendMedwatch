@@ -1,9 +1,8 @@
 /**
  * Static role-keyed navigation manifest consumed by the shell NavBar.
  * Centralising the menus here keeps the desktop top nav and the mobile
- * bottom nav perfectly in sync; B01 (admin-home nav to Scraper) was a
- * regression caused by editing only one menu copy, so all three role
- * menus now live in this single source of truth.
+ * bottom nav perfectly in sync; all three role menus live in this single
+ * source of truth so a label or href only ever changes in one place.
  *
  * Key exports: `NavIconName`, `NavItem`, and the `NAV_ITEMS` map.
  */
@@ -36,7 +35,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { id: "safety-checker", label: "Cek Keamanan", icon: "shield", href: "/safety-checker" },
     { id: "patients", label: "Pasien", icon: "users", href: "/patients" },
     { id: "visualization", label: "Visualisasi", icon: "chart", href: "/visualization" },
-    { id: "heatmap", label: "Heatmap", icon: "gear", href: "/heatmap" },
+    { id: "drugs-visualization", label: "Visualisasi Obat", icon: "gear", href: "/drugs-visualization" },
     { id: "export-pdf", label: "Export", icon: "spider", href: "/export-pdf" },
   ],
   masyarakat: [

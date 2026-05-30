@@ -55,7 +55,7 @@ const NAV_TKES: NavItem[] = [
   { label: "Patients", icon: Users, href: "/patients" },
   { label: "Visualization", icon: BarChart3, href: "/visualization" },
   { label: "Safety Checker", icon: ShieldCheck, href: "/safety-checker" },
-  { label: "Heatmap", icon: Grid3x3, href: "/heatmap" },
+  { label: "Drugs Visualization", icon: Grid3x3, href: "/drugs-visualization" },
   { label: "Export PDF", icon: FileDown, href: "/export" },
 ];
 

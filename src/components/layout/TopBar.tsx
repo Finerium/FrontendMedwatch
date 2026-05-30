@@ -27,7 +27,7 @@ const pageTitles: Record<string, string> = {
   "/indonesia-map": "Indonesia Map",
   "/drug-network": "Drug Network",
   "/molecule-viewer": "Molecule Viewer",
-  "/heatmap": "Side Effect Heatmap",
+  "/drugs-visualization": "Drugs Visualization",
   "/export": "Export PDF",
 };
 

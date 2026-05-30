@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import { HeatmapSection } from "@/components/heatmap/HeatmapSection";
 
 const FALLBACK_VISITS = [42, 51, 48, 62, 70, 68, 81, 75, 88, 92, 85, 96];
 const FALLBACK_MONTHS = ["Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des", "Jan", "Feb", "Mar", "Apr", "Mei"];
@@ -360,6 +361,39 @@ export default function VisualizationPage() {
           >
             <BarChart data={AGES} color="var(--ink)" />
           </ChartCard>
+        </div>
+
+        <div style={{ marginTop: 40 }}>
+          <span
+            className="mono"
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              color: "var(--ink-3)",
+              textTransform: "uppercase",
+            }}
+          >
+            Heatmap · obat x efek samping
+          </span>
+          <h2
+            className="serif"
+            style={{
+              fontSize: "clamp(2rem, 4vw, 3rem)",
+              fontWeight: 300,
+              letterSpacing: "-0.03em",
+              marginTop: 8,
+              marginBottom: 16,
+            }}
+          >
+            Matriks <em style={{ fontStyle: "italic" }}>kekerapan</em>.
+          </h2>
+          <p style={{ color: "var(--ink-3)", fontSize: 14, maxWidth: 720, marginBottom: 24 }}>
+            Intensitas efek samping terlapor per obat dan per jenis efek,
+            ditimbang berdasarkan tingkat keparahan (ringan, sedang, serius).
+            Baris dan kolom diurut menurun sesuai total, sehingga obat dan efek
+            dengan intensitas tertinggi tampak di sudut kiri atas.
+          </p>
+          <HeatmapSection />
         </div>
       </div>
     </div>
