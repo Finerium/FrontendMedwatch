@@ -53,14 +53,6 @@ const ROLE_CARDS: RoleCard[] = [
   },
 ];
 
-/** Username of the seeded admin account used by the silent demo tour. */
-const ADMIN_DEMO_USERNAME = "admin_ghaisan";
-/**
- * Password for the seeded admin demo account. Used only for the silent
- * demo-login call below and never rendered anywhere in the UI.
- */
-const ADMIN_DEMO_PASSWORD = "admin2026";
-
 /**
  * Page-level wrapper. `useSearchParams` requires a Suspense boundary at the
  * App-Router build layer; the inner component owns all the state.
@@ -95,7 +87,7 @@ function EntryInner() {
   const [shapeXY, setShapeXY] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const login = useAuthStore((s) => s.login);
+  const demoAdmin = useAuthStore((s) => s.demoAdmin);
 
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
@@ -127,7 +119,7 @@ function EntryInner() {
   const startAdminTour = async () => {
     setAdminError("");
     setAdminLoading(true);
-    const result = await login(ADMIN_DEMO_USERNAME, ADMIN_DEMO_PASSWORD);
+    const result = await demoAdmin();
     if (!result.ok) {
       setAdminLoading(false);
       setAdminError(result.error || "Demo admin tidak tersedia saat ini.");

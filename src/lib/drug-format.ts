@@ -21,6 +21,13 @@ export type BackendDrug = {
   kontraindikasi?: string[];
   interaksi?: string[];
   efek_samping?: string[];
+  // Multi-source enrichment fields (openFDA + RxNorm + DailyMed).
+  rxcui?: string | number | null;
+  rxnorm_name?: string;
+  sumber?: string;
+  sumber_list?: string[];
+  spl_setid?: string;
+  spl_title?: string;
 };
 
 /** UI-side drug shape consumed by drug search, comparison, and safety. */
@@ -35,6 +42,12 @@ export type DisplayDrug = {
   summary: string;
   warnings: string[];
   interactions: number;
+  // Multi-source enrichment fields surfaced in the detail panel.
+  ingredients: string[];
+  rxcui: string | null;
+  sources: string[];
+  splSetId: string;
+  splTitle: string;
 };
 
 const OTC_KATEGORI = new Set([
@@ -77,8 +90,15 @@ export function backendToDisplayDrug(b: BackendDrug, idx = 0): DisplayDrug {
     forms: b.dosis_umum ? [b.dosis_umum] : [],
     otc: OTC_KATEGORI.has((b.kategori || "").toLowerCase()),
     popularity: Math.max(1, 100 - idx),
-    summary: (b.indikasi || []).join(", ") || (b.kehamilan || ""),
+    summary: (b.indikasi || []).join(", ") || "Informasi klinis belum tersedia untuk obat ini.",
     warnings: b.peringatan || [],
     interactions: (b.interaksi || []).length,
+    ingredients: b.bahan_aktif || [],
+    rxcui: b.rxcui != null && b.rxcui !== "" ? String(b.rxcui) : null,
+    sources: b.sumber_list && b.sumber_list.length > 0
+      ? b.sumber_list
+      : (b.sumber ? b.sumber.split(" + ") : ["openFDA"]),
+    splSetId: b.spl_setid || "",
+    splTitle: b.spl_title || "",
   };
 }

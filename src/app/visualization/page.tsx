@@ -56,8 +56,8 @@ function LineChart({ data, labels }: { data: number[]; labels: string[] }) {
   const w = 560;
   const h = 200;
   const pad = 24;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
+  const max = data.length ? Math.max(...data) : 1;
+  const min = data.length ? Math.min(...data) : 0;
   const pts = data.map((v, i) => {
     const x = pad + (i / (data.length - 1)) * (w - pad * 2);
     const y = h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2);
@@ -317,7 +317,7 @@ export default function VisualizationPage() {
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {data.effects.map((e, i) => {
-                const max = Math.max(...data.effects.map((x) => x.n));
+                const max = Math.max(...data.effects.map((x) => x.n)) || 1;
                 const pct = (e.n / max) * 100;
                 return (
                   <div key={i} style={{ position: "relative" }}>

@@ -30,7 +30,9 @@ export default function DrugSearchPage() {
       try {
         const data = await api.get<BackendDrug[]>("/api/drugs");
         if (cancelled) return;
-        const display = (data || []).map((d, i) => backendToDisplayDrug(d, i));
+        const display = (data || [])
+          .filter((d): d is BackendDrug => !!d && typeof d === "object")
+          .map((d, i) => backendToDisplayDrug(d, i));
         setDrugs(display);
       } catch (e) {
         if (cancelled) return;
@@ -307,6 +309,68 @@ export default function DrugSearchPage() {
               <p style={{ color: "var(--ink-2)", marginBottom: 22, fontSize: 15, lineHeight: 1.6 }}>
                 {selected.summary || "Detail klinis belum tersedia."}
               </p>
+
+              {selected.ingredients.length > 0 && (
+                <>
+                  <h3
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-3)",
+                      marginBottom: 10,
+                    }}
+                  >
+                    Bahan aktif
+                  </h3>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+                    {selected.ingredients.map((ing, i) => (
+                      <span key={i} className="chip chip-teal">
+                        {ing}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-3)",
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 14,
+                  alignItems: "center",
+                  marginBottom: 22,
+                }}
+              >
+                {selected.rxcui && (
+                  <span>
+                    RXCUI{" "}
+                    <a
+                      href={`https://mor.nlm.nih.gov/RxNav/search?searchBy=RXCUI&searchTerm=${selected.rxcui}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "var(--ink-2)" }}
+                    >
+                      {selected.rxcui}
+                    </a>
+                  </span>
+                )}
+                {selected.splSetId && (
+                  <a
+                    href={`https://dailymed.nlm.nih.gov/dailymed/drugInfo.cfm?setid=${selected.splSetId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ color: "var(--ink-2)" }}
+                  >
+                    Label DailyMed (SPL)
+                  </a>
+                )}
+                <span>Sumber: {selected.sources.join(" + ")}</span>
+              </div>
 
               {selected.forms.length > 0 && (
                 <>

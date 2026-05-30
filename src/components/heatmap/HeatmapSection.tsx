@@ -172,7 +172,7 @@ export function HeatmapSection() {
     const orderedDrugs = rowOrder.map((r) => r.d);
     const orderedEffects = colOrder.map((c) => c.e);
     const orderedMatrix: number[][] = rowOrder.map(({ i }) =>
-      colOrder.map(({ j }) => weighted[i][j])
+      colOrder.map(({ j }) => weighted?.[i]?.[j] ?? 0)
     );
 
     const flat = orderedMatrix.flat();

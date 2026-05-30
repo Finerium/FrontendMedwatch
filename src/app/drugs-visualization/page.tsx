@@ -240,7 +240,9 @@ export default function DrugsVisualizationPage() {
     [efekSamping]
   );
 
-  const sumber = data?.sumber?.trim() || "openFDA / U.S. National Library of Medicine";
+  const sumber =
+    (typeof data?.sumber === "string" ? data.sumber.trim() : "") ||
+    "openFDA + RxNorm + DailyMed / U.S. National Library of Medicine";
 
   return (
     <div

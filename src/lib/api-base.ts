@@ -112,7 +112,14 @@ export function apiBase(): string {
   if (typeof window !== "undefined" && window.__MEDWATCH_BACKEND_PORT__) {
     return `http://127.0.0.1:${window.__MEDWATCH_BACKEND_PORT__}`;
   }
-  return "";
+  // Web (Vercel) mode: the build bakes the Cloud Run URL into
+  // NEXT_PUBLIC_API_BASE so the static export reaches the backend
+  // cross-origin. The backend CORS allowlist includes the Vercel origin and
+  // the Bearer transport is unified across desktop and web, so the same
+  // fetch(apiUrl('/api/...')) works in both. Empty string keeps relative
+  // same-origin paths for `next dev` and the desktop Flask loopback (whose
+  // renderer is served from the same origin as /api).
+  return process.env.NEXT_PUBLIC_API_BASE || "";
 }
 
 /**
