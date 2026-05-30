@@ -15,6 +15,42 @@
 
 ---
 
+## 0. Status terkini (dual-target desktop + web, Mei 2026)
+
+Frontend ini sekarang melayani dua target dari satu basis kode:
+
+- Desktop (Electron): static export di-bundle ke aplikasi MedWatch dan diserve backend
+  Flask lewat loopback. Token Bearer di localStorage, semua jalan offline.
+- Web (Vercel): static export yang sama, nunjuk api-base ke Cloud Run lewat
+  `NEXT_PUBLIC_API_BASE` (di-bake saat build). Transport Bearer yang sama, CORS backend
+  mengizinkan domain Vercel.
+
+Resolusi api-base ada di [`src/lib/api-base.ts`](./src/lib/api-base.ts): kalau Electron
+preload nyuntik `window.__MEDWATCH_BACKEND_PORT__`, pakai loopback; selain itu pakai
+`NEXT_PUBLIC_API_BASE` (web) atau path relatif (dev).
+
+### Yang berubah di rilis ini
+
+- Katalog obat sekarang multi-sumber (openFDA + RxNorm + DailyMed), 20.828 baris. Detail
+  obat di `/drug-search` nampilin RXCUI, bahan aktif, dan tautan label DailyMed kalau ada.
+  Halaman `/drugs-visualization` nampilin cakupan tiga sumber apa adanya.
+- Auth: backend Argon2id, self-service register, policy 12 karakter, rate limit, JWT
+  per-install secret, transport Bearer. Demo admin di web lewat endpoint server
+  `POST /api/auth/demo-admin`, jadi ngga ada kredensial admin yang ke-bundle di klien.
+- Desktop installer (Windows + macOS) dibangun dari backend yang sama; lihat Release di
+  https://github.com/Bisura16/medWatch/releases/tag/v0.1.0 (macOS dmg/zip, Windows NSIS +
+  portable). Unsigned: macOS perlu klik kanan Open atau
+  `xattr -dr com.apple.quarantine`, Windows perlu SmartScreen More info lalu Run anyway.
+
+### Build dua varian
+
+- Desktop renderer: `npm run build` (tanpa `NEXT_PUBLIC_API_BASE`) menghasilkan `out/`
+  yang di-stage ke `resources/renderer` aplikasi Electron.
+- Web: `NEXT_PUBLIC_API_BASE=<url Cloud Run> npm run build`, lalu deploy ke Vercel dengan
+  env `NEXT_PUBLIC_API_BASE` di-set di project Vercel.
+
+---
+
 ## 1. Apa Itu Frontend MedWatch
 
 Frontend MedWatch adalah web showcase yang memvisualisasikan fungsi sistem desktop MedWatch (lima modul Python anggota1-5) lewat browser. Frontend ini tidak menggantikan aplikasi desktop CustomTkinter milik kelompok; ia adalah lapisan presentasi tambahan ("demo fitur, bukan demo aplikasi") yang menghubungkan REST API backend (Flask di Cloud Run) ke antarmuka modern berbasis Next.js 16, Tailwind v4, dan shadcn/ui. Posisi web layer dalam keseluruhan sistem dijelaskan di repo backend pada file [SDD.md](https://github.com/Bisura16/medWatch/blob/main/docs/SDD.md) dan [AS-BUILT.md](https://github.com/Bisura16/medWatch/blob/main/docs/AS-BUILT.md).
@@ -82,12 +118,15 @@ Dependency lengkap dengan exact range ada di [`package.json`](./package.json).
 
 ## 5. Arsitektur
 
-Frontend tidak berbicara langsung dengan Cloud Run. Semua request `/api/...` dirutekan via proxy di [`src/proxy.ts`](./src/proxy.ts) (Next.js 16 ekuivalen dari pre-16 `middleware.ts`) yang:
+Frontend bicara ke backend lewat transport Bearer token yang seragam di desktop dan web
+(model proxy cookie httpOnly lama sudah ditinggalkan). Resolusi base URL dan token ada di
+[`src/lib/api-base.ts`](./src/lib/api-base.ts):
 
-1. Memforward request ke `BACKEND_API_URL` (server-only env var, tidak pernah expose ke browser).
-2. Menyertakan JWT dari cookie httpOnly `medwatch_token` sebagai header `Authorization: Bearer ...`.
-3. Pada `/api/auth/login`, men-set cookie dari field `token` di response backend.
-4. Pada `/api/auth/logout`, menghapus cookie.
+1. Token JWT disimpan di localStorage (`medwatch_token`) dan dikirim sebagai header
+   `Authorization: Bearer ...` di tiap request lewat `authHeaders()`.
+2. Desktop (Electron) memakai loopback `http://127.0.0.1:<port>` dari preload; web memakai
+   `NEXT_PUBLIC_API_BASE` (Cloud Run); dev memakai path relatif.
+3. Login menyimpan token dari field `token` di response, logout menghapusnya.
 
 ### Diagram C4 Level 1 (System Context)
 
