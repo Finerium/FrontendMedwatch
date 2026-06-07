@@ -23,7 +23,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore, landingForRole, type Role } from "@/lib/auth-store";
-import { apiBase } from "@/lib/api-base";
 import { evaluatePassword } from "@/lib/password-strength";
 
 /** A self-service role the entry cards can scope login/register to. */
@@ -72,22 +71,13 @@ export default function LoginPage() {
  * and switches between the role cards and the scoped auth panel.
  */
 function EntryInner() {
-  const router = useRouter();
   const params = useSearchParams();
   const fromPath = params.get("from") || "";
 
-  // Web mode (empty base) exposes the Admin demo card; desktop hides it.
-  const isWeb = apiBase() === "";
-
   const [view, setView] = useState<"cards" | "auth">("cards");
   const [selectedRole, setSelectedRole] = useState<SelfServiceRole>("tenaga_kesehatan");
-  const [adminLoading, setAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState("");
-
   const [shapeXY, setShapeXY] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const demoAdmin = useAuthStore((s) => s.demoAdmin);
 
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
@@ -109,23 +99,6 @@ function EntryInner() {
   /** Resolve the post-auth destination, honouring the `from` query param. */
   const destinationFor = (role: Role): string => {
     return fromPath && fromPath !== "/login" ? fromPath : landingForRole(role);
-  };
-
-  /**
-   * Silent admin demo tour (web only). Logs in the seeded admin account
-   * behind the scenes and routes to the admin dashboard. The password is
-   * never shown; it lives only in this call.
-   */
-  const startAdminTour = async () => {
-    setAdminError("");
-    setAdminLoading(true);
-    const result = await demoAdmin();
-    if (!result.ok) {
-      setAdminLoading(false);
-      setAdminError(result.error || "Demo admin tidak tersedia saat ini.");
-      return;
-    }
-    router.replace(destinationFor("admin"));
   };
 
   return (
@@ -200,13 +173,7 @@ function EntryInner() {
           }}
         >
           {view === "cards" ? (
-            <RoleSelection
-              isWeb={isWeb}
-              onPickRole={goToRole}
-              onAdminTour={startAdminTour}
-              adminLoading={adminLoading}
-              adminError={adminError}
-            />
+            <RoleSelection onPickRole={goToRole} />
           ) : (
             <AuthPanel
               role={selectedRole}
@@ -299,21 +266,12 @@ function IntroPanel() {
 }
 
 /**
- * Role-selection view: a card per role with no names or passwords. The
- * Admin card only renders in web mode and launches the silent demo tour.
+ * Role-selection view: a card per role with no names or passwords.
  */
 function RoleSelection({
-  isWeb,
   onPickRole,
-  onAdminTour,
-  adminLoading,
-  adminError,
 }: {
-  isWeb: boolean;
   onPickRole: (role: SelfServiceRole) => void;
-  onAdminTour: () => void;
-  adminLoading: boolean;
-  adminError: string;
 }) {
   return (
     <div>
@@ -369,67 +327,7 @@ function RoleSelection({
             </svg>
           </button>
         ))}
-
-        {isWeb && (
-          <button
-            type="button"
-            onClick={onAdminTour}
-            disabled={adminLoading}
-            className="lift"
-            style={{
-              padding: "18px 18px",
-              border: "1px solid var(--line)",
-              background: "transparent",
-              borderRadius: 14,
-              display: "grid",
-              gridTemplateColumns: "auto 1fr auto",
-              gap: 14,
-              alignItems: "center",
-              cursor: adminLoading ? "default" : "pointer",
-              textAlign: "left",
-              transition: "all 280ms",
-              opacity: adminLoading ? 0.7 : 1,
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: 5,
-                background: "var(--crit)",
-                opacity: 0.9,
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-              <span style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Admin</span>
-              <span style={{ fontSize: 12, color: "var(--ink-3)", lineHeight: 1.45 }}>
-                Tur demo administrator: masuk otomatis ke dasbor admin.
-              </span>
-            </span>
-            <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)", letterSpacing: "0.08em" }}>
-              {adminLoading ? "..." : "DEMO"}
-            </span>
-          </button>
-        )}
       </div>
-
-      {adminError && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: "10px 14px",
-            borderRadius: 10,
-            background: "color-mix(in oklab, var(--crit) 12%, transparent)",
-            color: "var(--crit-deep)",
-            fontSize: 13,
-            border: "1px solid color-mix(in oklab, var(--crit) 30%, transparent)",
-          }}
-        >
-          {adminError}
-        </div>
-      )}
     </div>
   );
 }

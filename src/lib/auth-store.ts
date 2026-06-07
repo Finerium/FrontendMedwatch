@@ -40,7 +40,6 @@ type AuthStore = {
   isLoading: boolean;
   hydrated: boolean;
   login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-  demoAdmin: () => Promise<{ ok: boolean; error?: string }>;
   register: (input: RegisterInput) => Promise<{ ok: boolean; error?: string }>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
@@ -67,33 +66,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (!r.ok) {
         const body = await r.json().catch(() => ({}));
         return { ok: false, error: body.error || "Login gagal" };
-      }
-      const data = await r.json();
-      if (typeof data?.token === "string" && data.token) {
-        setToken(data.token);
-      }
-      set({ user: data.user, isLoading: false, hydrated: true });
-      return { ok: true };
-    } catch {
-      return { ok: false, error: "Network error" };
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-
-  demoAdmin: async () => {
-    // Web showcase admin tour. The demo admin password lives only on the
-    // server; this passwordless call asks the backend to mint a token for
-    // the seeded demo admin, so no credential ever ships in the bundle.
-    set({ isLoading: true });
-    try {
-      const r = await fetch(apiUrl("/api/auth/demo-admin"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!r.ok) {
-        const body = await r.json().catch(() => ({}));
-        return { ok: false, error: body.error || "Demo admin tidak tersedia" };
       }
       const data = await r.json();
       if (typeof data?.token === "string" && data.token) {
@@ -155,12 +127,20 @@ export const useAuthStore = create<AuthStore>((set) => ({
       if (r.ok) {
         const user = await r.json();
         set({ user, hydrated: true });
-      } else {
+      } else if (r.status === 401) {
+        // Token is genuinely invalid: clear it.
         clearToken();
         set({ user: null, hydrated: true });
+      } else {
+        // Server error (5xx) but token may still be valid: keep it.
+        set({ hydrated: true });
       }
     } catch {
-      set({ user: null, hydrated: true });
+      // Transient network failure (not a 401): keep the token so a later
+      // retry recovers the session instead of forcing a logout. The local
+      // desktop backend is always reachable, so this only guards the web
+      // app against a flaky connection to Cloud Run.
+      set({ hydrated: true });
     } finally {
       set({ isLoading: false });
     }
