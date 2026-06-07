@@ -36,13 +36,18 @@ export type Patient = {
   owner_username?: string;
 };
 
-/** Lightweight summary returned by the list endpoint. */
+/**
+ * Lightweight summary returned by the list endpoint. The backend orders
+ * these newest-created first (by `created_at`, then id) and paginates them
+ * with `limit`/`offset`, so the list never pulls the full SOAP payload.
+ */
 export type PatientSummary = {
   id: string;
   nama: string;
   umur?: string;
   tanggal_kunjungan?: string;
   kategori?: string;
+  created_at?: string;
 };
 
 const NAMA_BULAN = [

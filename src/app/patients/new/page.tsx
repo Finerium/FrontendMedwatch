@@ -115,8 +115,11 @@ export default function NewPatientPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await api.post<Patient>("/api/patients", form);
-      router.replace(`/patients/edit/?id=${encodeURIComponent(created.id)}`);
+      await api.post<Patient>("/api/patients", form);
+      // Return to the roster so the bidan sees the freshly created patient at
+      // the top of the newest-created-first list. The list page refetches on
+      // mount, so navigating back surfaces the new record immediately.
+      router.replace("/patients");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Gagal menyimpan pasien");
       setSubmitting(false);
