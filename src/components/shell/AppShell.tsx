@@ -10,6 +10,7 @@ import { ThemeProvider } from "next-themes";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthStore, landingForRole, type Role } from "@/lib/auth-store";
+import { useReducedMotion } from "@/lib/ui-store";
 import { AmbientWorld } from "@/components/ambient/AmbientWorld";
 import { NavBar } from "./NavBar";
 import { ThemeToggle } from "./ThemeToggle";
@@ -86,6 +87,9 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const hydrated = useAuthStore((s) => s.hydrated);
+  // Drop the always-on ambient canvas on reduced-motion / lite-mode
+  // machines so low-power hardware is not driving a constant rAF loop.
+  const reduced = useReducedMotion();
 
   const pathname = normalize(rawPathname);
   const isLogin = pathname === "/login";
@@ -119,7 +123,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   return (
     <>
       <div className="ambient" />
-      <AmbientWorld enabled />
+      <AmbientWorld enabled={!reduced} />
       <div className="app-shell">
         {!isLogin && user && <NavBar user={user} />}
         {isLogin && (

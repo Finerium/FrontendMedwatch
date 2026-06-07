@@ -10,10 +10,61 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuthStore, type User } from "@/lib/auth-store";
+import { useUiStore, useLiteModeHydrated } from "@/lib/ui-store";
 import { NAV_ITEMS, type NavItem } from "@/lib/nav";
 import { NavIcon } from "./NavIcon";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
+
+/**
+ * Pill switch that toggles "Mode Ringan" (lite mode) for low-power
+ * machines. Styled to match `ThemeToggle`. Hydration safe: the store
+ * reads `liteMode` from localStorage (false on the server), so the
+ * switch renders its server-default off state on the first paint, then
+ * reflects the real value to avoid a hydration mismatch.
+ */
+function LiteModeToggle() {
+  const toggleLiteMode = useUiStore((s) => s.toggleLiteMode);
+  const on = useLiteModeHydrated();
+
+  return (
+    <button
+      className="btn btn-ghost"
+      onClick={toggleLiteMode}
+      style={{ padding: "8px 12px", borderRadius: 999, border: "1px solid var(--line)" }}
+      aria-label="Mode Ringan"
+      aria-pressed={on}
+      title="Mode Ringan: matikan animasi berat untuk perangkat ringan"
+    >
+      <span
+        style={{
+          position: "relative",
+          width: 36,
+          height: 18,
+          borderRadius: 999,
+          background: "var(--bg-2)",
+          border: "1px solid var(--line)",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: 1,
+            left: on ? 18 : 1,
+            width: 14,
+            height: 14,
+            borderRadius: "50%",
+            background: on ? "var(--teal)" : "var(--ink)",
+            transition: "left 380ms cubic-bezier(0.22, 1, 0.36, 1), background 300ms",
+          }}
+        />
+      </span>
+      <span className="mono" style={{ fontSize: 11, opacity: 0.7, letterSpacing: "0.06em" }}>
+        {"Mode Ringan " + (on ? "ON" : "OFF")}
+      </span>
+    </button>
+  );
+}
 
 /**
  * Whether a nav item should render as active given the current pathname.
@@ -100,6 +151,7 @@ function TopNav({ items, user }: { items: NavItem[]; user: User }) {
           })}
         </nav>
         <span style={{ width: 1, height: 24, background: "var(--line)" }} />
+        <LiteModeToggle />
         <ThemeToggle />
         <button
           className="btn btn-ghost"

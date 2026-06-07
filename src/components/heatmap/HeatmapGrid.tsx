@@ -10,6 +10,7 @@ import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { HeatmapData } from "@/data/heatmap";
+import { useReducedMotion } from "@/lib/ui-store";
 
 interface HeatmapGridProps {
   /** Underlying matrix bundle (drugs, side effects, frequencies, severities). */
@@ -61,6 +62,11 @@ function getCellColor(frequency: number, isDark: boolean): string {
  */
 export function HeatmapGrid({ data, sortBy, showValues, highlightHigh, searchQuery, onCellHover }: HeatmapGridProps) {
   const [isDark, setIsDark] = useState(false);
+  // On reduced-motion / lite-mode machines, render cells in their final
+  // state with no entrance, layout, or hover scaling so low-power
+  // hardware is not animating the whole grid. Colors and layout are
+  // unchanged.
+  const reduced = useReducedMotion();
 
   useEffect(() => {
     const check = () => setIsDark(document.documentElement.classList.contains("dark"));
@@ -121,11 +127,11 @@ export function HeatmapGrid({ data, sortBy, showValues, highlightHigh, searchQue
             <motion.div
               key={data.drugs[drugIdx]}
               role="row"
-              layout
-              initial={{ opacity: 0 }}
+              layout={!reduced}
+              initial={reduced ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              exit={reduced ? undefined : { opacity: 0 }}
+              transition={reduced ? { duration: 0 } : { duration: 0.3 }}
               className="contents"
             >
               {/* Row header */}
@@ -146,13 +152,13 @@ export function HeatmapGrid({ data, sortBy, showValues, highlightHigh, searchQue
                     key={`${drugIdx}-${seIdx}`}
                     role="gridcell"
                     aria-label={`${data.drugs[drugIdx]} - ${se}: ${freq}%`}
-                    layout
+                    layout={!reduced}
                     className={cn(
                       "h-[50px] flex items-center justify-center cursor-pointer transition-all duration-150 border border-white/[0.03] dark:border-white/[0.03]",
                       highlightHigh && isHighRisk && "ring-1 ring-pink-500/60 shadow-[0_0_12px_rgba(236,72,153,0.3)]"
                     )}
                     style={{ backgroundColor: getCellColor(freq, isDark) }}
-                    whileHover={{ scale: 1.05, zIndex: 20 }}
+                    whileHover={reduced ? undefined : { scale: 1.05, zIndex: 20 }}
                     onMouseEnter={(e) => {
                       const rect = (e.target as HTMLElement).getBoundingClientRect();
                       onCellHover({
