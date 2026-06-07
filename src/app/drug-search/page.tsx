@@ -1,44 +1,41 @@
 /**
- * Searchable drug directory. Marked `"use client"` for the live filter
- * input, the OTC/Rx tab toggle, and the detail panel that updates without
- * a route change. The catalog is fetched once on mount and translated
- * into the camelCase display shape used throughout the UI.
+ * Searchable drug directory. Search-first: the catalog has 20,828 rows, so
+ * the page never loads them all. On entry it shows a small default page; as
+ * the user types it queries the backend FTS5 index (debounced, aborting the
+ * previous request) and renders only the handful of matches. Selecting a drug
+ * fetches its full profile for the detail panel.
  */
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { apiUrl, authHeaders } from "@/lib/api-base";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import { NavIcon } from "@/components/shell/NavIcon";
 
-/**
- * Render the drug search list view plus the slide-in detail panel.
- * Wires through to `safety-checker` and `drug-comparison` via deep links.
- */
+const PAGE_SIZE = 15;
+const DEBOUNCE_MS = 280;
+
 export default function DrugSearchPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | "otc" | "rx">("all");
   const [selected, setSelected] = useState<DisplayDrug | null>(null);
-  const [drugs, setDrugs] = useState<DisplayDrug[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [results, setResults] = useState<DisplayDrug[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
+  // Total catalog size for the header, fetched once without pulling rows.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const data = await api.get<BackendDrug[]>("/api/drugs");
-        if (cancelled) return;
-        const display = (data || [])
-          .filter((d): d is BackendDrug => !!d && typeof d === "object")
-          .map((d, i) => backendToDisplayDrug(d, i));
-        setDrugs(display);
-      } catch (e) {
-        if (cancelled) return;
-        setLoadError(e instanceof ApiError ? e.message : "Gagal memuat data obat");
-      } finally {
-        if (!cancelled) setLoaded(true);
+        const c = await api.get<{ total: number }>("/api/drugs/count");
+        if (!cancelled) setTotal(c?.total ?? null);
+      } catch {
+        if (!cancelled) setTotal(null);
       }
     })();
     return () => {
@@ -46,21 +43,58 @@ export default function DrugSearchPage() {
     };
   }, []);
 
-  const filtered = useMemo(() => {
-    let r = drugs;
-    if (filter === "otc") r = r.filter((d) => d.otc);
-    if (filter === "rx") r = r.filter((d) => !d.otc);
-    if (query) {
-      const q = query.toLowerCase();
-      r = r.filter(
-        (d) =>
-          d.name.toLowerCase().includes(q) ||
-          d.generic.toLowerCase().includes(q) ||
-          d.class.toLowerCase().includes(q),
-      );
+  // Run a bounded query: the default page when q is empty, FTS5 search otherwise.
+  // Aborts any in-flight request so keystrokes never pile up.
+  const runQuery = useCallback(async (q: string) => {
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    setLoadError(null);
+    const path = q
+      ? `/api/drugs/search?q=${encodeURIComponent(q)}&limit=${PAGE_SIZE}`
+      : `/api/drugs?limit=${PAGE_SIZE}`;
+    try {
+      const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
+      if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
+      const data = (await r.json()) as BackendDrug[];
+      const display = (data || [])
+        .filter((d): d is BackendDrug => !!d && typeof d === "object")
+        .map((d, i) => backendToDisplayDrug(d, i));
+      setResults(display);
+      setLoading(false);
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return; // superseded
+      setResults([]);
+      setLoadError(e instanceof ApiError && e.status === 503 ? "Katalog obat tidak ter-load." : "Gagal memuat data obat");
+      setLoading(false);
     }
-    return r;
-  }, [query, filter, drugs]);
+  }, []);
+
+  // Initial default page.
+  useEffect(() => {
+    runQuery("");
+    return () => abortRef.current?.abort();
+  }, [runQuery]);
+
+  // Debounced search on input.
+  useEffect(() => {
+    const t = setTimeout(() => runQuery(query.trim()), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query, runQuery]);
+
+  // Fetch the full profile for the detail panel when a drug is picked.
+  const selectDrug = useCallback(async (d: DisplayDrug) => {
+    setSelected(d);
+    try {
+      const full = await api.get<BackendDrug>(`/api/drugs/${encodeURIComponent(d.lookupName)}`);
+      if (full) setSelected(backendToDisplayDrug(full));
+    } catch {
+      // Keep the light record already shown.
+    }
+  }, []);
+
+  const visible = filter === "all" ? results : results.filter((d) => (filter === "otc" ? d.otc : !d.otc));
 
   return (
     <div
@@ -92,7 +126,7 @@ export default function DrugSearchPage() {
             textTransform: "uppercase",
           }}
         >
-          Direktori obat · sinkron BPOM {loaded ? drugs.length : "..."} entri
+          Direktori obat · {total != null ? total.toLocaleString("id-ID") : "..."} entri
         </span>
         <h1
           className="serif"
@@ -179,17 +213,17 @@ export default function DrugSearchPage() {
                 className="mono"
                 style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.08em" }}
               >
-                {loaded ? `${filtered.length} HASIL` : "MEMUAT…"}
+                {loading ? "MEMUAT…" : `${visible.length} HASIL`}
               </span>
               <span
                 className="mono"
                 style={{ fontSize: 11, color: "var(--ink-3)", letterSpacing: "0.08em" }}
               >
-                POPULARITAS · A→Z
+                {query ? "PERINGKAT RELEVANSI" : "A→Z"}
               </span>
             </div>
-            {!loaded
-              ? Array.from({ length: 6 }).map((_, i) => (
+            {loading
+              ? Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <div
                     key={i}
                     className="skel"
@@ -197,64 +231,61 @@ export default function DrugSearchPage() {
                     aria-hidden
                   />
                 ))
-              : filtered.map((d) => {
-              const isSel = selected?.id === d.id;
-              return (
-                <div
-                  key={d.id}
-                  onClick={() => setSelected(d)}
-                  className="lift"
-                  style={{
-                    padding: 18,
-                    borderRadius: 18,
-                    background: isSel ? "var(--ink)" : "var(--bg-2)",
-                    color: isSel ? "var(--bg)" : "var(--ink)",
-                    border: "1px solid " + (isSel ? "var(--ink)" : "var(--line)"),
-                    cursor: "pointer",
-                    display: "grid",
-                    gridTemplateColumns: "44px 1fr auto",
-                    gap: 14,
-                    alignItems: "center",
-                    transition: "all 320ms cubic-bezier(0.22,1,0.36,1)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 44,
-                      height: 44,
-                      borderRadius: 12,
-                      background: isSel ? "var(--teal)" : "var(--bg)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isSel ? "var(--ink)" : "var(--ink-2)"} strokeWidth="1.4">
-                      <rect x="3" y="9" width="18" height="6" rx="3" />
-                      <path d="M12 9v6" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-                      <span className="serif" style={{ fontSize: 22, fontWeight: 400 }}>
-                        {d.name}
-                      </span>
-                      <span className="mono" style={{ fontSize: 11, opacity: 0.7 }}>
-                        {d.generic}
-                      </span>
+              : visible.map((d) => {
+                  const isSel = selected?.id === d.id;
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => selectDrug(d)}
+                      className="lift"
+                      style={{
+                        padding: 18,
+                        borderRadius: 18,
+                        background: isSel ? "var(--ink)" : "var(--bg-2)",
+                        color: isSel ? "var(--bg)" : "var(--ink)",
+                        border: "1px solid " + (isSel ? "var(--ink)" : "var(--line)"),
+                        cursor: "pointer",
+                        display: "grid",
+                        gridTemplateColumns: "44px 1fr auto",
+                        gap: 14,
+                        alignItems: "center",
+                        transition: "all 320ms cubic-bezier(0.22,1,0.36,1)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 12,
+                          background: isSel ? "var(--teal)" : "var(--bg)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isSel ? "var(--ink)" : "var(--ink-2)"} strokeWidth="1.4">
+                          <rect x="3" y="9" width="18" height="6" rx="3" />
+                          <path d="M12 9v6" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+                          <span className="serif" style={{ fontSize: 22, fontWeight: 400 }}>
+                            {d.name}
+                          </span>
+                          <span className="mono" style={{ fontSize: 11, opacity: 0.7 }}>
+                            {d.generic}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>{d.class}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <span className={"chip " + (d.otc ? "chip-teal" : "")}>{d.otc ? "OTC" : "Rx"}</span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 13, opacity: 0.75, marginTop: 4 }}>{d.class}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span className={"chip " + (d.otc ? "chip-teal" : "")}>{d.otc ? "OTC" : "Rx"}</span>
-                    <div className="mono" style={{ fontSize: 10, marginTop: 6, opacity: 0.6 }}>
-                      {d.interactions} interaksi
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {loaded && filtered.length === 0 && (
+                  );
+                })}
+            {!loading && visible.length === 0 && (
               <div className="glass" style={{ padding: 40, textAlign: "center" }}>
                 <p style={{ color: "var(--ink-3)" }}>
                   {loadError
@@ -444,7 +475,7 @@ export default function DrugSearchPage() {
 
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link
-                  href={`/safety-checker?drug=${encodeURIComponent(selected.name)}`}
+                  href={`/safety-checker?drug=${encodeURIComponent(selected.lookupName)}`}
                   className="btn btn-primary"
                   style={{ textDecoration: "none" }}
                 >
@@ -452,7 +483,7 @@ export default function DrugSearchPage() {
                   Cek interaksi obat ini
                 </Link>
                 <Link
-                  href={`/drug-comparison?initial=${encodeURIComponent(selected.name)}`}
+                  href={`/drug-comparison?initial=${encodeURIComponent(selected.lookupName)}`}
                   className="btn"
                   style={{ textDecoration: "none" }}
                 >

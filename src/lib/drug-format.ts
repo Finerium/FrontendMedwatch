@@ -11,6 +11,7 @@
 /** Shape returned by GET /api/drugs/* (Indonesian field names). */
 export type BackendDrug = {
   nama_obat: string;
+  display_name?: string;
   alias?: string[];
   kategori?: string;
   bahan_aktif?: string[];
@@ -34,6 +35,9 @@ export type BackendDrug = {
 export type DisplayDrug = {
   id: string;
   name: string;
+  /** Raw catalog name (generic/brand) used for backend lookups and deep links;
+   * the clean `name` (display_name) is for showing only and may not match. */
+  lookupName: string;
   generic: string;
   class: string;
   forms: string[];
@@ -84,7 +88,8 @@ export function backendToDisplayDrug(b: BackendDrug, idx = 0): DisplayDrug {
     (b.bahan_aktif && b.bahan_aktif.length > 0 ? b.bahan_aktif.join(", ") : b.nama_obat);
   return {
     id: slugifyDrugId(b.nama_obat),
-    name: b.nama_obat,
+    name: b.display_name || b.nama_obat,
+    lookupName: b.nama_obat,
     generic,
     class: b.kategori || "Obat",
     forms: b.dosis_umum ? [b.dosis_umum] : [],

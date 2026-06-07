@@ -4,6 +4,15 @@
  * `?initial=` must update local state, and the search-with-suggestions
  * box hosts a live filtered dropdown.
  *
+ * Search-first data flow: the catalog has tens of thousands of rows, so
+ * this page never loads them all. The picker shows a small default page
+ * and queries the backend FTS5 index as the user types (debounced, with
+ * the previous request aborted). Picking a drug fetches its FULL profile
+ * via GET /api/drugs/<lookupName>; that full record (which includes
+ * efek_samping and kontraindikasi, fields the light search projection
+ * omits) is what drives the comparison table, the contraindication row,
+ * and the aggregated side-effect chart.
+ *
  * Static-export note: `useSearchParams` is already wrapped in a
  * Suspense boundary below, so no `dynamic = "force-dynamic"` flag is
  * needed. The `?initial=` prefill still works because the parameter is
@@ -11,15 +20,22 @@
  */
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { apiUrl, authHeaders } from "@/lib/api-base";
 import type { BackendDrug } from "@/lib/drug-format";
 import { NavIcon } from "@/components/shell/NavIcon";
 
 /** Maximum drugs the side-by-side table can show without becoming unreadable. */
 const MAX_DRUGS = 3;
+
+/** Bounded page size for the default picker list and search results. */
+const PAGE_SIZE = 15;
+
+/** Debounce window before a keystroke triggers a backend search. */
+const DEBOUNCE_MS = 280;
 
 const TABLE_ROWS: { key: keyof BackendDrug; label: string; mode: "scalar" | "list" }[] = [
   { key: "kategori", label: "Kelas / kategori", mode: "scalar" },
@@ -30,6 +46,11 @@ const TABLE_ROWS: { key: keyof BackendDrug; label: string; mode: "scalar" | "lis
   { key: "kontraindikasi", label: "Kontraindikasi", mode: "list" },
   { key: "peringatan", label: "Peringatan", mode: "list" },
 ];
+
+/** Best-effort display label for a drug: the clean display name if present. */
+function drugLabel(d: BackendDrug): string {
+  return d.display_name || d.nama_obat;
+}
 
 /**
  * Page-level wrapper. `useSearchParams` needs a Suspense boundary; the
@@ -44,82 +65,133 @@ export default function DrugComparisonPage() {
 }
 
 /**
- * Interactive comparison body. Fetches the full drug catalog once,
- * builds a lowercased lookup for instant suggestions, and renders the
- * comparison table plus the aggregated side-effect strip chart.
+ * Interactive comparison body. Drives a search-first picker against the
+ * backend FTS5 index and, on selection, fetches each drug's full profile
+ * so the comparison table plus the aggregated side-effect strip chart and
+ * the contraindication row all have real data to render.
  */
 function DrugComparisonInner() {
   const params = useSearchParams();
   const initialName = params.get("initial") || "";
 
-  const [drugDb, setDrugDb] = useState<BackendDrug[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [prefillApplied, setPrefillApplied] = useState(false);
+  // Light picker state: a small set of search results, never the whole catalog.
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<BackendDrug[]>([]);
+  const [searching, setSearching] = useState(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.get<BackendDrug[]>("/api/drugs");
-        if (!cancelled) setDrugDb(data || []);
-      } catch (e) {
-        if (!cancelled) setDrugDb([]);
-        if (!cancelled && e instanceof ApiError) console.error(e);
-      } finally {
-        if (!cancelled) setLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // Selection state: full profiles keyed by lookupName (raw catalog name),
+  // and the ordered list of chosen lookupNames driving the table columns.
+  const [selected, setSelected] = useState<string[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, BackendDrug>>({});
+  const [pendingSelect, setPendingSelect] = useState<string[]>([]);
+  const [prefillApplied, setPrefillApplied] = useState(false);
+
+  // Run a bounded query: the default page when q is empty, FTS5 search
+  // otherwise. Aborts any in-flight request so keystrokes never pile up.
+  const runQuery = useCallback(async (q: string) => {
+    searchAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    searchAbortRef.current = ctrl;
+    setSearching(true);
+    const path = q
+      ? `/api/drugs/search?q=${encodeURIComponent(q)}&limit=${PAGE_SIZE}`
+      : `/api/drugs?limit=${PAGE_SIZE}`;
+    try {
+      const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
+      if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
+      const data = (await r.json()) as BackendDrug[];
+      setResults(
+        (data || []).filter((d): d is BackendDrug => !!d && typeof d === "object"),
+      );
+      setSearching(false);
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return; // superseded
+      setResults([]);
+      setSearching(false);
+    }
   }, []);
 
-  const drugLookup = useMemo(
-    () => Object.fromEntries(drugDb.map((d) => [d.nama_obat.toLowerCase(), d])),
-    [drugDb],
+  // Initial default page, plus cleanup of any in-flight request on unmount.
+  useEffect(() => {
+    runQuery("");
+    return () => searchAbortRef.current?.abort();
+  }, [runQuery]);
+
+  // Debounced search on input.
+  useEffect(() => {
+    const t = setTimeout(() => runQuery(query.trim()), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query, runQuery]);
+
+  /**
+   * Fetch the FULL profile for a drug and register it for comparison.
+   * The full record carries efek_samping and kontraindikasi, which the
+   * light search projection omits, so this is what makes the chart and
+   * the contraindication row populate.
+   */
+  const addDrug = useCallback(
+    async (lookupName: string) => {
+      setPendingSelect((p) => (p.includes(lookupName) ? p : [...p, lookupName]));
+      try {
+        const full = await api.get<BackendDrug>(
+          `/api/drugs/${encodeURIComponent(lookupName)}`,
+        );
+        if (full) {
+          setProfiles((prev) => ({ ...prev, [lookupName]: full }));
+          setSelected((prev) => {
+            if (prev.includes(lookupName) || prev.length >= MAX_DRUGS) return prev;
+            return [...prev, lookupName];
+          });
+        }
+      } catch (e) {
+        if (e instanceof ApiError) console.error(e);
+      } finally {
+        setPendingSelect((p) => p.filter((n) => n !== lookupName));
+      }
+    },
+    [],
   );
 
+  // Honor the ?initial=<lookupName> deep link once: fetch its full profile
+  // and preselect it.
   useEffect(() => {
     if (prefillApplied) return;
-    if (!loaded) return;
-    if (initialName) {
-      const match = drugLookup[initialName.toLowerCase()];
-      if (match && selected.length === 0) {
-        setSelected([match.nama_obat]);
-      }
-    }
     setPrefillApplied(true);
-  }, [initialName, loaded, drugLookup, selected.length, prefillApplied]);
+    if (initialName) {
+      void addDrug(initialName);
+    }
+  }, [initialName, prefillApplied, addDrug]);
 
-  const suggestions = useMemo(() => {
-    if (!query) return [];
-    const q = query.toLowerCase();
-    return drugDb
-      .filter(
-        (d) =>
-          !selected.includes(d.nama_obat) &&
-          (d.nama_obat.toLowerCase().includes(q) ||
-            (d.bahan_aktif || []).some((b) => b.toLowerCase().includes(q))),
-      )
-      .slice(0, 6);
-  }, [query, drugDb, selected]);
+  const onPickFromList = (lookupName: string) => {
+    if (selected.length >= MAX_DRUGS) return;
+    setQuery("");
+    void addDrug(lookupName);
+  };
 
-  const selectedDrugs = useMemo(
-    () => selected.map((n) => drugLookup[n.toLowerCase()]).filter(Boolean) as BackendDrug[],
-    [selected, drugLookup],
+  const removeDrug = (lookupName: string) => {
+    setSelected((prev) => prev.filter((n) => n !== lookupName));
+  };
+
+  // Picker suggestions: search results that are not already selected or
+  // being fetched. With an empty query this is the small default page.
+  const suggestions = useMemo(
+    () =>
+      results
+        .filter(
+          (d) =>
+            !selected.includes(d.nama_obat) && !pendingSelect.includes(d.nama_obat),
+        )
+        .slice(0, 6),
+    [results, selected, pendingSelect],
   );
 
-  const addDrug = (name: string) => {
-    if (selected.length >= MAX_DRUGS) return;
-    setSelected([...selected, name]);
-    setQuery("");
-  };
-
-  const removeDrug = (name: string) => {
-    setSelected(selected.filter((n) => n !== name));
-  };
+  // The full profiles for the chosen drugs, in selection order. Every
+  // downstream render (table, chart, contraindication row) reads these.
+  const selectedDrugs = useMemo(
+    () => selected.map((n) => profiles[n]).filter(Boolean) as BackendDrug[],
+    [selected, profiles],
+  );
 
   const effectAggregation = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -218,7 +290,7 @@ function DrugComparisonInner() {
               disabled={selected.length >= MAX_DRUGS}
               style={{ marginBottom: 8 }}
             />
-            {suggestions.length > 0 && (
+            {selected.length < MAX_DRUGS && suggestions.length > 0 && (
               <div
                 className="glass"
                 style={{
@@ -234,7 +306,7 @@ function DrugComparisonInner() {
                 {suggestions.map((d) => (
                   <button
                     key={d.nama_obat}
-                    onClick={() => addDrug(d.nama_obat)}
+                    onClick={() => onPickFromList(d.nama_obat)}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
@@ -252,7 +324,7 @@ function DrugComparisonInner() {
                     onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   >
                     <span>
-                      <strong>{d.nama_obat}</strong>{" "}
+                      <strong>{drugLabel(d)}</strong>{" "}
                       <span style={{ color: "var(--ink-3)", fontSize: 12 }}>· {d.kategori}</span>
                     </span>
                     <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)" }}>
@@ -275,7 +347,7 @@ function DrugComparisonInner() {
                   borderColor: "transparent",
                 }}
               >
-                {name}
+                {drugLabel(profiles[name]) || name}
                 <button
                   onClick={() => removeDrug(name)}
                   style={{
@@ -291,9 +363,20 @@ function DrugComparisonInner() {
                 </button>
               </span>
             ))}
-            {selected.length === 0 && (
+            {pendingSelect
+              .filter((n) => !selected.includes(n))
+              .map((name) => (
+                <span
+                  key={`pending-${name}`}
+                  className="chip"
+                  style={{ opacity: 0.6 }}
+                >
+                  {name} · memuat…
+                </span>
+              ))}
+            {selected.length === 0 && pendingSelect.length === 0 && (
               <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                {!loaded ? "Memuat katalog obat…" : "Belum ada obat dipilih."}
+                {searching ? "Mencari obat…" : "Belum ada obat dipilih."}
               </span>
             )}
           </div>
@@ -387,7 +470,7 @@ function DrugComparisonInner() {
                             verticalAlign: "middle",
                           }}
                         />
-                        {d.nama_obat}
+                        {drugLabel(d)}
                       </th>
                     ))}
                   </tr>
@@ -505,7 +588,7 @@ function DrugComparisonInner() {
                                 className="mono"
                                 style={{ fontSize: 10, color: "var(--ink-3)" }}
                               >
-                                {d.nama_obat}
+                                {drugLabel(d)}
                               </span>
                               <div
                                 style={{
@@ -571,7 +654,7 @@ function DrugComparisonInner() {
                         background: drugColors[i],
                       }}
                     />
-                    {d.nama_obat} · {(d.efek_samping || []).length} efek
+                    {drugLabel(d)} · {(d.efek_samping || []).length} efek
                   </span>
                 ))}
               </div>

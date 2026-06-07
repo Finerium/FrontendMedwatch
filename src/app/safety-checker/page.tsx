@@ -12,13 +12,18 @@
  */
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
+import { apiUrl, authHeaders } from "@/lib/api-base";
 import { useAuthStore } from "@/lib/auth-store";
 import { backendToDisplayDrug, type BackendDrug, type DisplayDrug } from "@/lib/drug-format";
 import { parseResepToMeds, type Patient } from "@/lib/patient-format";
 import { NavIcon } from "@/components/shell/NavIcon";
+
+/** Small default page size and debounce window for the search-first picker. */
+const PAGE_SIZE = 15;
+const DEBOUNCE_MS = 280;
 
 /** Severity words shown to the user. */
 type SeverityWord = "aman" | "ringan" | "sedang" | "serius";
@@ -136,9 +141,14 @@ export default function SafetyCheckerPage() {
 }
 
 /**
- * Interactive body of the safety checker. Loads the drug catalog and
- * patient list once, watches for `?drug=` prefill, and exposes the
- * verdict card plus per-result detail cards once a scan completes.
+ * Interactive body of the safety checker. The drug picker is search-first:
+ * the backend catalog has more than 20,000 rows, so the page never loads
+ * them all. On entry it shows a small default page and, as the user types,
+ * it queries the backend FTS5 index (debounced, aborting superseded
+ * requests). Selected drugs are tracked by their raw `lookupName` so the
+ * interaction engine can match them; their clean `name` is used only for
+ * display. The effect that watches `patient` still surfaces B05 active
+ * meds, and the `?drug=` deep link still prefills the list.
  */
 function SafetyCheckerInner() {
   const params = useSearchParams();
@@ -149,12 +159,22 @@ function SafetyCheckerInner() {
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const isMasyarakat = user?.role === "masyarakat";
 
-  const [drugDb, setDrugDb] = useState<DisplayDrug[]>([]);
-  const [drugsLoaded, setDrugsLoaded] = useState(false);
+  // Search-first drug picker state. `suggestions` holds the current bounded
+  // result set (default page when the query is empty, FTS5 matches otherwise).
+  // `pickeLoaded` flips true once the first default page resolves so the chip
+  // area can swap its placeholder copy. `nameMap` accumulates clean display
+  // names keyed by lowercased lookupName, so chips and result cards keep a
+  // readable label even after the suggestion list changes underneath them.
+  const [suggestions, setSuggestions] = useState<DisplayDrug[]>([]);
+  const [pickerLoaded, setPickerLoaded] = useState(false);
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const pickerAbortRef = useRef<AbortController | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patientsLoaded, setPatientsLoaded] = useState(false);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [activeMeds, setActiveMeds] = useState<string[]>([]);
+  // `drugs` holds raw lookupName values; those are exactly what the backend
+  // interaction engine matches on and what /api/safety/check expects.
   const [drugs, setDrugs] = useState<string[]>([]);
   const [prefillApplied, setPrefillApplied] = useState(false);
   const [drugQuery, setDrugQuery] = useState("");
@@ -168,23 +188,66 @@ function SafetyCheckerInner() {
     if (!hydrated) fetchMe();
   }, [hydrated, fetchMe]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await api.get<BackendDrug[]>("/api/drugs");
-        if (cancelled) return;
-        setDrugDb((data || []).map((d, i) => backendToDisplayDrug(d, i)));
-      } catch {
-        if (!cancelled) setDrugDb([]);
-      } finally {
-        if (!cancelled) setDrugsLoaded(true);
+  // Record clean display names keyed by lowercased lookupName so chips and
+  // result cards stay readable regardless of which suggestion set is loaded.
+  const rememberNames = useCallback((items: DisplayDrug[]) => {
+    if (items.length === 0) return;
+    setNameMap((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const d of items) {
+        const key = d.lookupName.toLowerCase();
+        if (next[key] !== d.name) {
+          next[key] = d.name;
+          changed = true;
+        }
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      return changed ? next : prev;
+    });
   }, []);
+
+  // Run one bounded picker query: the small default page when the term is
+  // empty, the FTS5 search otherwise. Aborts any in-flight request so rapid
+  // keystrokes never pile up. Uses apiUrl()/authHeaders() only, so it works
+  // both on the Vercel proxy and the Electron loopback backend (offline).
+  const runPickerQuery = useCallback(
+    async (term: string) => {
+      pickerAbortRef.current?.abort();
+      const ctrl = new AbortController();
+      pickerAbortRef.current = ctrl;
+      const path = term
+        ? `/api/drugs/search?q=${encodeURIComponent(term)}&limit=${PAGE_SIZE}`
+        : `/api/drugs?limit=${PAGE_SIZE}`;
+      try {
+        const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
+        if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
+        const data = (await r.json()) as BackendDrug[];
+        const display = (data || [])
+          .filter((d): d is BackendDrug => !!d && typeof d === "object")
+          .map((d, i) => backendToDisplayDrug(d, i));
+        setSuggestions(display);
+        rememberNames(display);
+        setPickerLoaded(true);
+      } catch (e) {
+        if ((e as { name?: string })?.name === "AbortError") return; // superseded
+        setSuggestions([]);
+        setPickerLoaded(true);
+      }
+    },
+    [rememberNames],
+  );
+
+  // Initial default page for the picker.
+  useEffect(() => {
+    runPickerQuery("");
+    return () => pickerAbortRef.current?.abort();
+  }, [runPickerQuery]);
+
+  // Debounced search as the user types into the drug input.
+  useEffect(() => {
+    const t = setTimeout(() => runPickerQuery(drugQuery.trim()), DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [drugQuery, runPickerQuery]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -209,25 +272,51 @@ function SafetyCheckerInner() {
     };
   }, [hydrated, isMasyarakat]);
 
-  const drugLookup = useMemo(
-    () => Object.fromEntries(drugDb.map((d) => [d.name.toLowerCase(), d])),
-    [drugDb],
+  // Resolve a lookupName to its clean display label, falling back to the raw
+  // name when it has not been seen yet (offline-safe, no extra request).
+  const displayName = useCallback(
+    (lookupName: string) => nameMap[lookupName.toLowerCase()] || lookupName,
+    [nameMap],
   );
 
+  // Prefill from the `?drug=` deep link. Tokens are catalog names (lookupName,
+  // as emitted by the drug-search page), so each is stored directly into the
+  // drug list. We also fetch each profile by lookupName to learn its clean
+  // display name for the chip; failure leaves the raw name visible.
   useEffect(() => {
     if (prefillApplied) return;
-    if (!initialDrugParam || !drugsLoaded) return;
-    const matches = initialDrugParam
+    if (!initialDrugParam) {
+      setPrefillApplied(true);
+      return;
+    }
+    const lookupNames = initialDrugParam
       .split(",")
       .map((s) => decodeURIComponent(s.trim()))
-      .map((s) => drugLookup[s.toLowerCase()])
-      .filter(Boolean)
-      .map((d) => d!.name);
-    if (matches.length > 0 && drugs.length === 0) {
-      setDrugs(matches);
+      .filter(Boolean);
+    if (lookupNames.length > 0 && drugs.length === 0) {
+      setDrugs(lookupNames);
+      let cancelled = false;
+      (async () => {
+        const resolved = await Promise.all(
+          lookupNames.map(async (ln) => {
+            try {
+              const full = await api.get<BackendDrug>(`/api/drugs/${encodeURIComponent(ln)}`);
+              return full ? backendToDisplayDrug(full) : null;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        if (cancelled) return;
+        rememberNames(resolved.filter((d): d is DisplayDrug => d != null));
+      })();
+      setPrefillApplied(true);
+      return () => {
+        cancelled = true;
+      };
     }
     setPrefillApplied(true);
-  }, [initialDrugParam, drugsLoaded, drugLookup, drugs.length, prefillApplied]);
+  }, [initialDrugParam, drugs.length, prefillApplied, rememberNames]);
 
   // B05: when a patient is picked, fetch the full SOAP record to read
   // `P.resep`, parse it into a list of active medications, surface them in
@@ -269,17 +358,14 @@ function SafetyCheckerInner() {
     };
   }, [patient]);
 
+  // Suggestions come straight from the backend (default page or FTS5 search);
+  // we only drop drugs already in the list and cap the dropdown height. Matching
+  // by lookupName keeps the dedupe aligned with what is stored in `drugs`.
   const drugSuggestions = useMemo(() => {
     if (!drugQuery) return [];
-    const q = drugQuery.toLowerCase();
-    return drugDb
-      .filter(
-        (d) =>
-          !drugs.includes(d.name) &&
-          (d.name.toLowerCase().includes(q) || d.generic.toLowerCase().includes(q)),
-      )
-      .slice(0, 6);
-  }, [drugQuery, drugs, drugDb]);
+    const chosen = new Set(drugs.map((d) => d.toLowerCase()));
+    return suggestions.filter((d) => !chosen.has(d.lookupName.toLowerCase())).slice(0, 6);
+  }, [drugQuery, drugs, suggestions]);
 
   const cards: ResultCard[] = useMemo(() => {
     if (!result) return [];
@@ -326,6 +412,8 @@ function SafetyCheckerInner() {
     setScanError(null);
     setScanned(false);
     try {
+      // `drugs` already holds lookupName values, which is what the backend
+      // interaction engine matches on.
       const payload: { drugs: string[]; pasien_id?: string } = { drugs };
       if (patient) payload.pasien_id = patient.id;
       const data = await api.post<BackendSafetyResult>("/api/safety/check", payload);
@@ -338,15 +426,23 @@ function SafetyCheckerInner() {
     }
   };
 
-  const addDrug = (name: string) => {
-    setDrugs([...drugs, name]);
+  // Add a picked suggestion: store its raw lookupName (sent to the backend),
+  // remember its clean display name, and avoid duplicates.
+  const addDrug = (d: DisplayDrug) => {
+    const ln = d.lookupName;
+    if (drugs.some((x) => x.toLowerCase() === ln.toLowerCase())) {
+      setDrugQuery("");
+      return;
+    }
+    rememberNames([d]);
+    setDrugs([...drugs, ln]);
     setDrugQuery("");
     setScanned(false);
     setResult(null);
   };
 
-  const removeDrug = (name: string) => {
-    setDrugs(drugs.filter((d) => d !== name));
+  const removeDrug = (lookupName: string) => {
+    setDrugs(drugs.filter((d) => d !== lookupName));
     setScanned(false);
     setResult(null);
   };
@@ -630,7 +726,7 @@ function SafetyCheckerInner() {
                   {drugSuggestions.map((d) => (
                     <button
                       key={d.id}
-                      onClick={() => addDrug(d.name)}
+                      onClick={() => addDrug(d)}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
@@ -661,15 +757,15 @@ function SafetyCheckerInner() {
             </div>
 
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8, minHeight: 28 }}>
-              {drugs.map((name) => (
+              {drugs.map((lookupName) => (
                 <span
-                  key={name}
+                  key={lookupName}
                   className="chip"
                   style={{ background: "var(--ink)", color: "var(--bg)", borderColor: "var(--ink)" }}
                 >
-                  {drugLookup[name.toLowerCase()]?.name || name}
+                  {displayName(lookupName)}
                   <button
-                    onClick={() => removeDrug(name)}
+                    onClick={() => removeDrug(lookupName)}
                     style={{
                       background: "transparent",
                       border: "none",
@@ -685,7 +781,7 @@ function SafetyCheckerInner() {
               ))}
               {drugs.length === 0 && (
                 <span style={{ fontSize: 12, color: "var(--ink-3)" }}>
-                  {!drugsLoaded ? "Memuat katalog obat…" : "Belum ada obat ditambahkan."}
+                  {!pickerLoaded ? "Memuat katalog obat…" : "Belum ada obat ditambahkan."}
                 </span>
               )}
             </div>
@@ -898,10 +994,8 @@ function SafetyCheckerInner() {
                                   "1px solid color-mix(in oklab, var(--warn) 40%, transparent)",
                               }
                             : { border: "1px solid var(--line)" };
-                      const aName = drugLookup[r.a.toLowerCase()]?.name || r.a;
-                      const bName = r.b
-                        ? drugLookup[r.b.toLowerCase()]?.name || r.b
-                        : null;
+                      const aName = displayName(r.a);
+                      const bName = r.b ? displayName(r.b) : null;
                       return (
                         <div
                           key={i}
