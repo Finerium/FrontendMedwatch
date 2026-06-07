@@ -12,6 +12,7 @@
 export type BackendDrug = {
   nama_obat: string;
   display_name?: string;
+  product_ndc?: string;
   alias?: string[];
   kategori?: string;
   bahan_aktif?: string[];
@@ -34,6 +35,10 @@ export type BackendDrug = {
 /** UI-side drug shape consumed by drug search, comparison, and safety. */
 export type DisplayDrug = {
   id: string;
+  /** Unique per catalog row (product_ndc). Used as the React list key, since
+   * several distinct rows can share the same display name (and thus the same
+   * slug `id`); a non-unique key made React keep stale cards across queries. */
+  key: string;
   name: string;
   /** Raw catalog name (generic/brand) used for backend lookups and deep links;
    * the clean `name` (display_name) is for showing only and may not match. */
@@ -88,6 +93,7 @@ export function backendToDisplayDrug(b: BackendDrug, idx = 0): DisplayDrug {
     (b.bahan_aktif && b.bahan_aktif.length > 0 ? b.bahan_aktif.join(", ") : b.nama_obat);
   return {
     id: slugifyDrugId(b.nama_obat),
+    key: b.product_ndc || `${slugifyDrugId(b.nama_obat)}-${idx}`,
     name: b.display_name || b.nama_obat,
     lookupName: b.nama_obat,
     generic,

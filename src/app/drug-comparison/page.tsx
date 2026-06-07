@@ -101,6 +101,9 @@ function DrugComparisonInner() {
       const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
       if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
       const data = (await r.json()) as BackendDrug[];
+      // Drop a superseded response so a slower earlier request never
+      // overwrites the latest query's results.
+      if (ctrl !== searchAbortRef.current) return;
       setResults(
         (data || []).filter((d): d is BackendDrug => !!d && typeof d === "object"),
       );
@@ -112,15 +115,16 @@ function DrugComparisonInner() {
     }
   }, []);
 
-  // Initial default page, plus cleanup of any in-flight request on unmount.
+  // One effect for both the initial default page and the debounced search,
+  // so a second request never races the first. Empty loads immediately;
+  // typing is debounced. Changing the query aborts any in-flight request.
   useEffect(() => {
-    runQuery("");
-    return () => searchAbortRef.current?.abort();
-  }, [runQuery]);
-
-  // Debounced search on input.
-  useEffect(() => {
-    const t = setTimeout(() => runQuery(query.trim()), DEBOUNCE_MS);
+    const q = query.trim();
+    if (!q) {
+      runQuery("");
+      return () => searchAbortRef.current?.abort();
+    }
+    const t = setTimeout(() => runQuery(q), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, runQuery]);
 
@@ -303,9 +307,9 @@ function DrugComparisonInner() {
                   marginTop: 4,
                 }}
               >
-                {suggestions.map((d) => (
+                {suggestions.map((d, i) => (
                   <button
-                    key={d.nama_obat}
+                    key={d.product_ndc || `${d.nama_obat}-${i}`}
                     onClick={() => onPickFromList(d.nama_obat)}
                     style={{
                       display: "flex",

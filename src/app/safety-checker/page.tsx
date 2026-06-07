@@ -222,6 +222,9 @@ function SafetyCheckerInner() {
         const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
         if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
         const data = (await r.json()) as BackendDrug[];
+        // Drop a superseded response so a slower earlier request never
+        // overwrites the latest query's suggestions.
+        if (ctrl !== pickerAbortRef.current) return;
         const display = (data || [])
           .filter((d): d is BackendDrug => !!d && typeof d === "object")
           .map((d, i) => backendToDisplayDrug(d, i));
@@ -237,15 +240,16 @@ function SafetyCheckerInner() {
     [rememberNames],
   );
 
-  // Initial default page for the picker.
+  // One effect for both the initial default page and the debounced search,
+  // so a second request never races the first. Empty loads immediately;
+  // typing is debounced. Changing the query aborts any in-flight request.
   useEffect(() => {
-    runPickerQuery("");
-    return () => pickerAbortRef.current?.abort();
-  }, [runPickerQuery]);
-
-  // Debounced search as the user types into the drug input.
-  useEffect(() => {
-    const t = setTimeout(() => runPickerQuery(drugQuery.trim()), DEBOUNCE_MS);
+    const q = drugQuery.trim();
+    if (!q) {
+      runPickerQuery("");
+      return () => pickerAbortRef.current?.abort();
+    }
+    const t = setTimeout(() => runPickerQuery(q), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [drugQuery, runPickerQuery]);
 
@@ -725,7 +729,7 @@ function SafetyCheckerInner() {
                 >
                   {drugSuggestions.map((d) => (
                     <button
-                      key={d.id}
+                      key={d.key}
                       onClick={() => addDrug(d)}
                       style={{
                         display: "flex",

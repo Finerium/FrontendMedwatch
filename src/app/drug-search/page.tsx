@@ -58,6 +58,9 @@ export default function DrugSearchPage() {
       const r = await fetch(apiUrl(path), { headers: authHeaders(), signal: ctrl.signal });
       if (!r.ok) throw new ApiError(r.status, null, `HTTP ${r.status}`);
       const data = (await r.json()) as BackendDrug[];
+      // Drop this response if a newer query has since started, so a slower
+      // default/earlier request can never overwrite the latest query result.
+      if (ctrl !== abortRef.current) return;
       const display = (data || [])
         .filter((d): d is BackendDrug => !!d && typeof d === "object")
         .map((d, i) => backendToDisplayDrug(d, i));
@@ -71,15 +74,17 @@ export default function DrugSearchPage() {
     }
   }, []);
 
-  // Initial default page.
+  // One effect drives both the initial default page and the debounced search,
+  // so a second request never races the first. An empty query loads the
+  // default page immediately; typing is debounced. Changing the query aborts
+  // any in-flight request before starting the next.
   useEffect(() => {
-    runQuery("");
-    return () => abortRef.current?.abort();
-  }, [runQuery]);
-
-  // Debounced search on input.
-  useEffect(() => {
-    const t = setTimeout(() => runQuery(query.trim()), DEBOUNCE_MS);
+    const q = query.trim();
+    if (!q) {
+      runQuery("");
+      return () => abortRef.current?.abort();
+    }
+    const t = setTimeout(() => runQuery(q), DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [query, runQuery]);
 
@@ -232,10 +237,10 @@ export default function DrugSearchPage() {
                   />
                 ))
               : visible.map((d) => {
-                  const isSel = selected?.id === d.id;
+                  const isSel = selected?.key === d.key;
                   return (
                     <div
-                      key={d.id}
+                      key={d.key}
                       onClick={() => selectDrug(d)}
                       className="lift"
                       style={{
