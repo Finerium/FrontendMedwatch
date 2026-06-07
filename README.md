@@ -1,6 +1,6 @@
-# MedWatch Frontend - Next.js 15 Web Showcase for the MedWatch Desktop System
+# MedWatch Frontend - Next.js 16 Web Showcase for the MedWatch System
 
-> Antarmuka web showcase yang membungkus modul desktop MedWatch (anggota1-5) lewat REST API berbasis Flask. Frontend ini Next.js 16 App Router yang dideploy ke Vercel dengan proxy ke backend Flask di Google Cloud Run.
+> Antarmuka web showcase yang membungkus modul desktop MedWatch (anggota1-5) lewat REST API berbasis Flask. Frontend ini Next.js 16 App Router (static export) yang melayani dua target dari satu codebase: web di Vercel (memanggil Flask di Cloud Run lewat transport Bearer) dan renderer desktop Electron (memanggil Flask lokal di loopback). Pemilihan base URL via `src/lib/api-base.ts`; model proxy cookie lama sudah ditinggalkan.
 
 | Metadata | Nilai |
 |---|---|
@@ -34,13 +34,18 @@ preload nyuntik `window.__MEDWATCH_BACKEND_PORT__`, pakai loopback; selain itu p
 - Katalog obat sekarang multi-sumber (openFDA + RxNorm + DailyMed), 20.828 baris. Detail
   obat di `/drug-search` nampilin RXCUI, bahan aktif, dan tautan label DailyMed kalau ada.
   Halaman `/drugs-visualization` nampilin cakupan tiga sumber apa adanya.
-- Auth: backend Argon2id, self-service register, policy 12 karakter, rate limit, JWT
-  per-install secret, transport Bearer. Demo admin di web lewat endpoint server
-  `POST /api/auth/demo-admin`, jadi ngga ada kredensial admin yang ke-bundle di klien.
+- Auth: backend Argon2id (plus pepper server di Cloud Run), self-service register cuma
+  `tenaga_kesehatan` dan `masyarakat` (admin ngga bisa di-register), policy 12 karakter,
+  rate limit, JWT per-install secret, transport Bearer. Endpoint demo-admin passwordless
+  udah DICABUT; ngga ada kredensial admin yang ke-bundle di klien.
+- Drug search sekarang search-first: query FTS5 lokal lewat backend, debounce + AbortController,
+  list default ~15 (bukan dump 20.828), nama tampil bersih (`display_name`).
 - Desktop installer (Windows + macOS) dibangun dari backend yang sama; lihat Release di
-  https://github.com/Bisura16/medWatch/releases/tag/v0.1.0 (macOS dmg/zip, Windows NSIS +
-  portable). Unsigned: macOS perlu klik kanan Open atau
-  `xattr -dr com.apple.quarantine`, Windows perlu SmartScreen More info lalu Run anyway.
+  https://github.com/Bisura16/medWatch/releases/tag/v0.2.0 (macOS dmg/zip, Windows NSIS +
+  portable) atau landing https://medwatch-landing.vercel.app. Unsigned: di macOS Sequoia/Tahoe
+  buka System Settings > Privacy & Security > "Open Anyway" (klik-kanan-Open udah ngga jalan),
+  atau `xattr -dr com.apple.quarantine /Applications/MedWatch.app`; Windows klik SmartScreen
+  "More info" lalu "Run anyway".
 
 ### Build dua varian
 
@@ -77,9 +82,9 @@ Dosen pendamping: Aprianti Nanda Sari (Project Manager), Ade Chandra Nugraha, Ar
 
 Daftar fitur disusun mengikuti ID requirement dari [SRS](https://github.com/Bisura16/medWatch/blob/main/docs/SRS.md) backend. ID requirement (FR-NNN) dapat ditelusuri ke baris implementasi di kedua repo via Requirements Traceability Matrix.
 
-1. **Autentikasi tiga peran** (FR-001 sampai FR-008): halaman `/login` dengan tiga preset demo (tenaga_kesehatan, masyarakat, admin), pembacaan kredensial dari `FormData` untuk kompatibilitas password manager, middleware Next.js untuk redirect dan role gating pada `/admin/*` dan `/pasien/*`.
+1. **Autentikasi tiga peran** (FR-001 sampai FR-008): halaman `/login` dengan kartu peran self-service (`tenaga_kesehatan` dan `masyarakat`; admin login pakai kredensial, ngga ada tur passwordless), pembacaan kredensial dari `FormData` untuk kompatibilitas password manager, route guard klien untuk redirect dan role gating pada `/admin/*` dan `/pasien/*`. Penegakan sebenarnya tetap di server (Bearer token wajib).
 2. **CRUD pasien SOAP** (FR-010 sampai FR-019): daftar pasien `/patients` terurut newest-first, form bidan-style di `/patients/new` dengan validasi range klinis pada blur dan submit, detail printable di `/patients/[id]`.
-3. **Pencarian obat dan perbandingan** (FR-020 sampai FR-024): autocomplete dengan alias di `/drug-search`, side-by-side comparison di `/drug-compare`, profil keamanan lengkap per obat.
+3. **Pencarian obat dan perbandingan** (FR-020 sampai FR-024): search-first di `/drug-search` (query FTS5 lokal lewat backend, debounce + AbortController, skeleton, list default ~15, nama bersih `display_name`), side-by-side comparison di `/drug-compare` (fetch profil penuh per obat), profil keamanan lengkap per obat. Halaman `/safety-checker` dan `/drug-compare` ikut search-first, bukan lagi muat seluruh katalog.
 4. **Pengecekan keamanan obat** (FR-030 sampai FR-039): multi-input chip di `/safety-checker`, otomatis menyertakan obat aktif pasien jika `pasien_id` dipilih, panel edukasi cara membaca verdict severitas.
 5. **Visualisasi data** (FR-040 sampai FR-049): tren kunjungan, distribusi kategori, top efek samping di `/visualization`; heatmap obat x efek dengan skala warna kontinu 5-stop dan legend gradient di `/heatmap`.
 6. **Ekspor PDF** (FR-050 sampai FR-054): empat tipe laporan di `/export-pdf` (rekam medis, kunjungan bulanan, efek samping ter-ranked, inventaris obat), setiap tipe memanggil endpoint backend yang berbeda.
@@ -128,27 +133,43 @@ Frontend bicara ke backend lewat transport Bearer token yang seragam di desktop 
    `NEXT_PUBLIC_API_BASE` (Cloud Run); dev memakai path relatif.
 3. Login menyimpan token dari field `token` di response, logout menghapusnya.
 
+### Arsitektur sistem (rilis final)
+
+Diagram ini mencerminkan arsitektur final: satu codebase Next.js melayani dua mode (renderer
+desktop Electron offline dan web Vercel), berbagi backend Flask dan katalog SQLite. Source SVG
+ada di [`docs/diagrams/src/`](./docs/diagrams/src/).
+
+![Arsitektur sistem MedWatch: mode desktop offline (Electron, Flask frozen di loopback, renderer Next.js, drugs.db userData) dan mode web (Next.js Vercel, Flask Cloud Run, drugs.db image, GCS), dengan inti bersama dan dual-mode api-base](./docs/diagrams/png/system-architecture.png)
+
+![Alur auth dan transport dual-mode MedWatch: login diverifikasi Argon2id di Flask, JWT HS256 diterbitkan, token Bearer di localStorage dikirim sebagai header Authorization di setiap request, base URL dipilih loopback untuk desktop atau Cloud Run untuk web](./docs/diagrams/png/auth-dual-mode.png)
+
+Di web, `src/lib/api-base.ts` me-resolve base ke `NEXT_PUBLIC_API_BASE` (URL Cloud Run yang
+di-bake saat build) dan browser memanggil backend cross-origin (CORS allowlist). Di desktop,
+base-nya `http://127.0.0.1:<port>` dari preload. Transport Bearer sama di kedua mode.
+
 ### Diagram C4 Level 1 (System Context)
 
 ![C4 Level 1 Context: aktor tenaga kesehatan, masyarakat, admin terhubung ke MedWatch melalui Vercel frontend; MedWatch terkoneksi ke openFDA API dan GCS state bucket](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/c4-l1-context.png)
 
-Frontend ini adalah komponen yang dilabel "Vercel Frontend" pada diagram. Ia menerima request dari aktor tenaga kesehatan, masyarakat, dan admin lewat browser, lalu meneruskan ke backend Flask di Cloud Run.
+Frontend ini adalah komponen yang dilabel "Vercel Frontend" pada diagram. Browser memuat static export dari Vercel, lalu memanggil backend Flask di Cloud Run langsung lewat transport Bearer (CORS allowlist), bukan lewat proxy. Diagram C4 di bawah adalah pandangan konteks tingkat tinggi; untuk aliran terkini lihat diagram arsitektur sistem di atas.
 
 ### Diagram C4 Level 2 (Container)
 
 ![C4 Level 2 Container: container Next.js (Vercel) memproksi ke container Flask (Cloud Run) yang membaca-tulis container GCS dan memanggil container openFDA eksternal](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/c4-l2-container.png)
 
-Container Next.js dijalankan di Vercel Hobby tier sebagai serverless function untuk API routes dan Edge Function untuk middleware. Pola proxy ini (Security Pattern B) didokumentasikan di [ADR-001](https://github.com/Bisura16/medWatch/blob/main/docs/adr/0001-vercel-cloud-run-security-pattern.md).
+Catatan: rilis final memakai static export (bukan serverless proxy); browser memanggil Cloud Run langsung dengan token Bearer. ADR proxy lama (Security Pattern B) tetap diarsipkan di [ADR-001](https://github.com/Bisura16/medWatch/blob/main/docs/adr/0001-vercel-cloud-run-security-pattern.md) sebagai riwayat keputusan.
 
 ### Diagram Deployment
 
 ![Deployment diagram: browser klien terkoneksi ke Vercel CDN edge, lalu Vercel function memanggil Cloud Run service di asia-southeast1 yang mengakses GCS bucket dan Secret Manager](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/deployment.png)
 
-Frontend di-deploy ke `medwatch-frontend.vercel.app`. Variabel `BACKEND_API_URL` di-set lewat Vercel project settings (server-side scope saja). Backend di-deploy ke Cloud Run region `asia-southeast1`. Detail lengkap di [INSTALL.md](https://github.com/Bisura16/medWatch/blob/main/docs/INSTALL.md).
+Frontend di-deploy ke `medwatch-frontend.vercel.app`. Variabel `NEXT_PUBLIC_API_BASE` di-set ke URL Cloud Run (di-bake saat build, dipakai browser). Backend di-deploy ke Cloud Run region `asia-southeast1` dengan `gcloud run deploy --source .`. Detail lengkap di [INSTALL.md](https://github.com/Bisura16/medWatch/blob/main/docs/INSTALL.md).
 
 ### Diagram alur sequence (Login)
 
-![Sequence diagram login: browser POST credentials ke Vercel API route, route forward ke Flask login, Flask verifikasi bcrypt dan terbitkan JWT, route set httpOnly cookie](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/seq-login.png)
+Acuan alur auth terkini adalah diagram "Alur auth dan transport dual-mode" di awal seksi ini (Argon2id + Bearer). Diagram di bawah berasal dari era proxy cookie dan disimpan sebagai referensi historis (notasi cookie httpOnly sudah tidak berlaku):
+
+![Sequence diagram login era proxy lama (historis): browser POST credentials, Flask verifikasi dan terbitkan JWT](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/seq-login.png)
 
 Daftar lengkap diagram (use case, class, activity, state machine, ERD Chen, ERD Crow's Foot, sequence safety check, sequence PDF, sequence scraping) tersedia di repo backend pada folder [`docs/diagrams/png/`](https://github.com/Bisura16/medWatch/tree/main/docs/diagrams/png).
 
@@ -173,10 +194,9 @@ cd FrontendMedwatch
 # 2. Install dependencies
 npm install
 
-# 3. Set environment variable
-echo "BACKEND_API_URL=http://localhost:8080" > .env.local
-# atau arahkan ke production:
-# echo "BACKEND_API_URL=https://medwatch-api-517694123086.asia-southeast1.run.app" > .env.local
+# 3. (Opsional) arahkan ke backend. Dev pakai path relatif kalau kosong.
+#    Untuk web build yang nembak Cloud Run, set NEXT_PUBLIC_API_BASE (dibaca browser):
+# echo "NEXT_PUBLIC_API_BASE=https://medwatch-api-517694123086.asia-southeast1.run.app" > .env.local
 
 # 4. Jalankan dev server
 npm run dev
@@ -193,7 +213,7 @@ Variabel environment yang dibaca oleh frontend. Tidak ada nilai kredensial perna
 
 | Nama | Wajib | Scope | Kegunaan |
 |---|---|---|---|
-| `BACKEND_API_URL` | ya | server-side saja | URL backend Cloud Run atau local. Tidak prefix `NEXT_PUBLIC_` sehingga tidak terexpose ke browser. |
+| `NEXT_PUBLIC_API_BASE` | ya (web) | build-time, dibaca browser | URL backend Cloud Run yang di-bake ke static export saat build, dipakai browser buat panggil API cross-origin. Kosong = path relatif (dev). Desktop abaikan ini (pakai loopback dari preload). |
 
 Tidak ada secret yang disimpan di repo. Setting Vercel project di dashboard mengelola variabel ini per-environment (Production, Preview, Development). Postur keamanan menyeluruh dijelaskan di [SECURITY.md backend](https://github.com/Bisura16/medWatch/blob/main/docs/SECURITY.md).
 
@@ -394,7 +414,7 @@ Rencana pengujian formal black-box dengan teknik Equivalence Partitioning, Bound
 
 ## 14. Deployment
 
-Frontend dideploy ke Vercel Hobby tier lewat repo `Finerium/FrontendMedwatch` di branch `main`. Push ke `main` memicu deployment otomatis. Setup environment variable `BACKEND_API_URL` dilakukan via Vercel dashboard atau CLI:
+Frontend dideploy ke Vercel Hobby tier lewat repo `Finerium/FrontendMedwatch` di branch `main`. Push ke `main` memicu deployment otomatis. Variabel `NEXT_PUBLIC_API_BASE` (URL Cloud Run) di-set di Vercel project settings atau di-pass saat build (`--build-env`), karena di-bake ke static export:
 
 ```bash
 vercel --prod
@@ -414,14 +434,21 @@ Frontend ini di-author oleh Ghaisan Khoirul Badruzaman sebagai bagian dari MedWa
 
 ### Frontend-Backend correlation pattern (oleh Ghaisan)
 
-Frontend tidak pernah berbicara langsung dengan Cloud Run. Semua `/api/...` call dirutekan via [`src/proxy.ts`](./src/proxy.ts) sebagai Vercel proxy yang:
+Catatan riwayat: versi awal memakai proxy cookie (Security Pattern B, diarsipkan di
+[ADR-001 backend](https://github.com/Bisura16/medWatch/blob/main/docs/adr/0001-vercel-cloud-run-security-pattern.md)). Rilis final SUDAH PINDAH ke transport Bearer langsung; pola
+proxy cookie itu tidak dipakai lagi. Pola terkini:
 
-1. Forward request ke `BACKEND_API_URL` (server-only env var, tidak terexpose ke browser).
-2. Attach JWT dari cookie httpOnly `medwatch_token` sebagai header `Authorization: Bearer ...`.
-3. Pada `/api/auth/login`, set cookie dari field `token` di response backend.
-4. Pada `/api/auth/logout`, hapus cookie.
+1. Base URL di-resolve di [`src/lib/api-base.ts`](./src/lib/api-base.ts): desktop loopback
+   `http://127.0.0.1:<port>`, web `NEXT_PUBLIC_API_BASE` (Cloud Run), dev path relatif.
+2. Token JWT disimpan di `localStorage` (`medwatch_token`), dikirim sebagai header
+   `Authorization: Bearer ...` di tiap request lewat `authHeaders()`. Tidak ada cookie httpOnly.
+3. Login menyimpan token dari field `token` di response; logout menghapusnya.
+4. Browser memanggil Cloud Run langsung (cross-origin), backend mengizinkan origin Vercel
+   lewat CORS allowlist.
 
-Middleware auth me-redirect pengguna yang tidak terautentikasi ke `/login` dan menegakkan role-based access pada path `/admin/*` dan `/pasien/*`. Pola ini disebut Security Pattern B; alasan pemilihan ada di [ADR-001 backend](https://github.com/Bisura16/medWatch/blob/main/docs/adr/0001-vercel-cloud-run-security-pattern.md).
+Route guard sisi klien me-redirect pengguna yang tidak terautentikasi ke `/login` dan
+menegakkan role-based access pada path `/admin/*` dan `/pasien/*`. Penegakan sebenarnya tetap
+di server: setiap endpoint `/api/*` butuh token Bearer yang valid.
 
 ---
 
