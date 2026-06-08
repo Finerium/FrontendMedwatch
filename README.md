@@ -147,6 +147,16 @@ Di web, `src/lib/api-base.ts` me-resolve base ke `NEXT_PUBLIC_API_BASE` (URL Clo
 di-bake saat build) dan browser memanggil backend cross-origin (CORS allowlist). Di desktop,
 base-nya `http://127.0.0.1:<port>` dari preload. Transport Bearer sama di kedua mode.
 
+### Structure Chart (dekomposisi modul)
+
+Bagan terstruktur (structure chart, notasi Yourdon/Constantine) dari kontrol utama `main`
+turun ke seluruh fitur dan sub-modulnya. Tiap kotak adalah modul, garis adalah pemanggilan
+(call), dan kopel mendokumentasikan data (lingkaran kosong) atau kontrol/flag (lingkaran isi)
+antar modul. Warna menandai pemilik modul per anggota tim. Source SVG di
+[`docs/diagrams/src/structure-chart.svg`](./docs/diagrams/src/structure-chart.svg).
+
+![Structure Chart MedWatch: modul kontrol utama main memanggil delapan subsistem fitur (autentikasi, manajemen pasien, katalog obat, cek keamanan obat, visualisasi, ekspor PDF, admin, akuisisi data), masing-masing dengan sub-modulnya, plus kopel data dan kontrol antar modul dan kode warna pemilik per anggota tim](./docs/diagrams/png/structure-chart.png)
+
 ### Diagram C4 Level 1 (System Context)
 
 ![C4 Level 1 Context: aktor tenaga kesehatan, masyarakat, admin terhubung ke MedWatch melalui Vercel frontend; MedWatch terkoneksi ke openFDA API dan GCS state bucket](https://raw.githubusercontent.com/Bisura16/medWatch/main/docs/diagrams/png/c4-l1-context.png)
